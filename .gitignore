@@ -2,6 +2,8 @@ node_modules/
 dist/
 build/
 coverage/
+!packages/coverage/
+!packages/coverage/**
 .next/
 .turbo/
 .vercel/
