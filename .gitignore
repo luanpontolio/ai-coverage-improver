@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+coverage/
+.env
+.npmrc
+.DS_Store
+*.log
+.turbo/
+.vercel/
+.specify/
+.specs/

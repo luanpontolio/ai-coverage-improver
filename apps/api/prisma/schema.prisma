@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model GithubInstallation {
+  id             String   @id @default(cuid())
+  installationId String   @unique
+  accountType    String
+  accountLogin   String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  repositories   Repository[]
+}
+
+model Repository {
+  id              String   @id @default(cuid())
+  provider        String
+  owner           String
+  name            String
+  defaultBranch   String
+  installationId  String
+  installation    GithubInstallation @relation(fields: [installationId], references: [installationId])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  coverageSnaps   CoverageSnapshot[]
+  improvementJobs ImprovementJob[]
+}
+
+model CoverageSnapshot {
+  id          String   @id @default(cuid())
+  repository  Repository @relation(fields: [repositoryId], references: [id])
+  repositoryId String
+  ref         String
+  commitSha   String?
+  sourcePath  String
+  format      String
+  createdAt   DateTime @default(now())
+  files       CoverageFileMetric[]
+}
+
+model CoverageFileMetric {
+  id          String   @id @default(cuid())
+  snapshot    CoverageSnapshot @relation(fields: [snapshotId], references: [id])
+  snapshotId  String
+  filePath    String
+  coveragePct Float
+  isBelowThreshold Boolean
+}
+
+model ImprovementJob {
+  id             String   @id @default(cuid())
+  repository     Repository @relation(fields: [repositoryId], references: [id])
+  repositoryId   String
+  targetFilePath String
+  status         String
+  requestedByUserId String?
+  createdAt      DateTime @default(now())
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  failureCode    String?
+  failureMessage String?
+  pullRequestUrl String?
+  pullRequestNumber Int?
+  executions     AIExecution[]
+}
+
+model AIExecution {
+  id          String   @id @default(cuid())
+  job         ImprovementJob @relation(fields: [jobId], references: [id])
+  jobId       String
+  agentType   String
+  status      String
+  startedAt   DateTime @default(now())
+  finishedAt  DateTime?
+  metadata    String?
+}
+
