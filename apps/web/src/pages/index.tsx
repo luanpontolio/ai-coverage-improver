@@ -1,5 +1,6 @@
 import { useMemo, useState, ChangeEvent } from 'react';
 import { CoverageTable } from '../components/CoverageTable';
+import { JobStatus } from '../components/JobStatus';
 
 type Repo = { id: string; owner: string; name: string; defaultBranch: string };
 
@@ -27,6 +28,7 @@ const coverageByRepo = {
 
 export default function Home() {
   const [selectedRepoId, setSelectedRepoId] = useState<string>(repos[0]?.id ?? '');
+  const [job, setJob] = useState<{ id: string; targetFilePath: string; status: 'queued' | 'succeeded' } | undefined>();
   const coverage = useMemo(() => coverageByRepo[selectedRepoId as keyof typeof coverageByRepo], [selectedRepoId]);
   const selectedRepo = useMemo(() => repos.find((repo) => repo.id === selectedRepoId), [selectedRepoId]);
 
@@ -58,6 +60,27 @@ export default function Home() {
             {coverage.thresholdPct}% are highlighted.
           </p>
           <CoverageTable files={coverage.files} thresholdPct={coverage.thresholdPct} />
+          <div style={{ marginTop: '1rem' }}>
+            <button
+              onClick={() =>
+                setJob({
+                  id: `job-${Date.now()}`,
+                  targetFilePath: coverage.files.find((f) => f.isBelowThreshold)?.filePath ?? 'src/utils.ts',
+                  status: 'succeeded',
+                })
+              }
+            >
+              Request improvement (demo)
+            </button>
+          </div>
+          <JobStatus
+            job={
+              job && {
+                ...job,
+                pullRequestUrl: 'https://github.com/demo/demo-repo/pull/1',
+              }
+            }
+          />
         </>
       ) : (
         <p>No coverage data for the selected repository yet.</p>
