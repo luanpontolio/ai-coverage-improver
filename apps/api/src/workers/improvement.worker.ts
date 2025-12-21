@@ -1,32 +1,28 @@
 import { JobRepository } from '../infrastructure/db/job.repository';
-import { createOrUpdatePullRequest } from '@github/pr';
+import { RunCoverageImprovementOperation } from '../application/operations/run-coverage-improvement.operation';
 
-const FAILURE_TAXONOMY = {
-  NOT_ADMIN: 'NOT_ADMIN',
-  PR_CREATION_FAILED: 'PR_CREATION_FAILED',
-  UNKNOWN: 'UNKNOWN',
-} as const;
+/**
+ * Worker: Improvement Job Processor
+ * 
+ * This worker is responsible for processing improvement jobs.
+ * Following the Operations Pattern, it ONLY executes the operation.
+ * All business logic is contained within RunCoverageImprovementOperation.
+ * 
+ * SAFETY RULES ENFORCED (by the operation):
+ * 1. Only operates on default branch
+ * 2. Only creates/modifies *.test.ts files
+ * 3. Never executes tests
+ * 4. Never auto-merges PRs
+ * 5. Isolated execution environment
+ */
+export const processImprovementJob = async (
+  jobId: string,
+  jobRepository: JobRepository,
+): Promise<void> => {
+  // Create operation instance
+  const operation = new RunCoverageImprovementOperation(jobRepository);
 
-export type FailureCode = keyof typeof FAILURE_TAXONOMY;
-
-export const processImprovementJob = async (jobId: string, jobRepository: JobRepository) => {
-  const job = await jobRepository.findById(jobId);
-  if (!job) return;
-
-  await jobRepository.updateStatus(jobId, 'running');
-
-  try {
-    // Safety rules: default-branch only, tests-only changes, no test execution, no auto-merge.
-    const pr = await createOrUpdatePullRequest(job.repositoryId, job.targetFilePath);
-    await jobRepository.updateStatus(jobId, 'succeeded', {
-      pullRequestUrl: pr.url,
-      pullRequestNumber: pr.number,
-    });
-  } catch (err) {
-    await jobRepository.updateStatus(jobId, 'failed', {
-      failureCode: FAILURE_TAXONOMY.PR_CREATION_FAILED,
-      failureMessage: err instanceof Error ? err.message : 'PR creation failed',
-    });
-  }
-};
+  // Execute operation
+  await operation.execute({ jobId });
+}
 
