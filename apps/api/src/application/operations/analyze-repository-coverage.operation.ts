@@ -16,7 +16,7 @@ export interface AnalyzeRepositoryCoverageOutput {
 
 /**
  * Operation: Analyze Repository Coverage
- * 
+ *
  * Fetches coverage data for a repository, parses it, and saves a snapshot.
  * This represents the complete interaction of analyzing coverage.
  */
