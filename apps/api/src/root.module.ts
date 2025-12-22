@@ -47,7 +47,7 @@ import { InstallationRepository } from './infrastructure/db/installation.reposit
 
     // Infrastructure Database
     PrismaService,
-    
+
     // Infrastructure Repositories
     CoverageRepository,
     JobRepository,
