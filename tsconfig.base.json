@@ -8,14 +8,13 @@
     "strict": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
-      "@domain/*": ["packages/domain/src/*"],
-      "@contracts/*": ["packages/contracts/src/*"],
       "@github/*": ["packages/github/src/*"],
-      "@coverage/*": ["packages/coverage/src/*"],
-      "@shared/*": ["packages/shared/src/*"]
+      "@coverage/*": ["packages/coverage/src/*"]
     }
   },
   "include": ["apps", "packages"]

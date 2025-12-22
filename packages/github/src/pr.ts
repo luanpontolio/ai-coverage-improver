@@ -1,0 +1,300 @@
+import { Octokit } from '@octokit/rest';
+
+export interface PullRequest {
+  url: string;
+  number: number;
+  headBranch: string;
+}
+
+export interface PullRequestOptions {
+  owner: string;
+  repo: string;
+  targetFilePath: string;
+  testFilePath: string;
+  testContent: string;
+  baseBranch: string;
+  installationId?: string;
+}
+
+export interface GitHubClientOptions {
+  appId?: string;
+  privateKey?: string;
+  installationId?: string;
+  personalAccessToken?: string;
+}
+
+/**
+ * Creates an Octokit client authenticated for a GitHub App installation
+ */
+export const createGitHubClient = (options: GitHubClientOptions): Octokit => {
+  // For MVP, use personal access token if provided
+  if (options.personalAccessToken) {
+    return new Octokit({
+      auth: options.personalAccessToken,
+    });
+  }
+
+  // TODO: Implement GitHub App authentication with JWT
+  // This would require:
+  // 1. Generate JWT signed with app private key
+  // 2. Exchange JWT for installation access token
+  // 3. Create Octokit with installation token
+
+  throw new Error('GitHub authentication not configured. Set GITHUB_TOKEN or configure GitHub App credentials.');
+};
+
+/**
+ * Generates a unique branch name for improvement PRs
+ */
+export const generateBranchName = (targetFilePath: string): string => {
+  const sanitizedPath = targetFilePath.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+  const timestamp = Date.now();
+  return `ai-coverage-improvement/${sanitizedPath}-${timestamp}`;
+};
+
+/**
+ * Checks if a PR already exists for the given file
+ */
+export const findExistingPR = async (
+  client: Octokit,
+  owner: string,
+  repo: string,
+  targetFilePath: string,
+): Promise<PullRequest | null> => {
+  try {
+    const { data: pullRequests } = await client.pulls.list({
+      owner,
+      repo,
+      state: 'open',
+      per_page: 100,
+    });
+
+    // Find PR created by this bot for the same file
+    const existingPR = pullRequests.find((pr) => {
+      return (
+        pr.title.includes(`Coverage improvement for ${targetFilePath}`) ||
+        pr.head.ref.includes(targetFilePath.replace(/[^a-zA-Z0-9]/g, '-'))
+      );
+    });
+
+    if (existingPR) {
+      return {
+        url: existingPR.html_url,
+        number: existingPR.number,
+        headBranch: existingPR.head.ref,
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error finding existing PR:', error);
+    return null;
+  }
+};
+
+/**
+ * Creates or updates a pull request with test file changes
+ */
+export const createOrUpdatePullRequest = async (
+  client: Octokit,
+  options: PullRequestOptions,
+): Promise<PullRequest> => {
+  const { owner, repo, targetFilePath, testFilePath, testContent, baseBranch } = options;
+
+  // Check for existing PR
+  const existingPR = await findExistingPR(client, owner, repo, targetFilePath);
+
+  if (existingPR) {
+    // Update existing PR by adding commits to the same branch
+    await updatePRBranch(client, owner, repo, existingPR.headBranch, testFilePath, testContent, baseBranch);
+    return existingPR;
+  }
+
+  // Create new PR
+  return await createNewPR(client, owner, repo, targetFilePath, testFilePath, testContent, baseBranch);
+};
+
+/**
+ * Creates a new pull request with test file changes
+ */
+const createNewPR = async (
+  client: Octokit,
+  owner: string,
+  repo: string,
+  targetFilePath: string,
+  testFilePath: string,
+  testContent: string,
+  baseBranch: string,
+): Promise<PullRequest> => {
+  // Generate unique branch name
+  const branchName = generateBranchName(targetFilePath);
+
+  // Get the SHA of the base branch
+  const { data: refData } = await client.git.getRef({
+    owner,
+    repo,
+    ref: `heads/${baseBranch}`,
+  });
+  const baseSha = refData.object.sha;
+
+  // Create new branch
+  await client.git.createRef({
+    owner,
+    repo,
+    ref: `refs/heads/${branchName}`,
+    sha: baseSha,
+  });
+
+  // Create blob for test file content
+  const { data: blobData } = await client.git.createBlob({
+    owner,
+    repo,
+    content: Buffer.from(testContent).toString('base64'),
+    encoding: 'base64',
+  });
+
+  // Get base tree
+  const { data: baseCommit } = await client.git.getCommit({
+    owner,
+    repo,
+    commit_sha: baseSha,
+  });
+
+  // Create new tree with test file
+  const { data: newTree } = await client.git.createTree({
+    owner,
+    repo,
+    base_tree: baseCommit.tree.sha,
+    tree: [
+      {
+        path: testFilePath,
+        mode: '100644',
+        type: 'blob',
+        sha: blobData.sha,
+      },
+    ],
+  });
+
+  // Create commit
+  const { data: newCommit } = await client.git.createCommit({
+    owner,
+    repo,
+    message: `Add tests for ${targetFilePath}\n\n⚠️ SAFETY NOTICE:\n- This PR contains ONLY test files (*.test.ts)\n- No production code has been modified\n- Tests should be reviewed before merging\n- Tests are NOT executed by this bot\n- NO auto-merge will occur\n\nGenerated by AI Coverage Improvement Bot`,
+    tree: newTree.sha,
+    parents: [baseSha],
+  });
+
+  // Update branch reference to point to new commit
+  await client.git.updateRef({
+    owner,
+    repo,
+    ref: `heads/${branchName}`,
+    sha: newCommit.sha,
+  });
+
+  // Create pull request
+  const { data: pr } = await client.pulls.create({
+    owner,
+    repo,
+    title: `🤖 Coverage improvement for ${targetFilePath}`,
+    head: branchName,
+    base: baseBranch,
+    body: `## AI-Generated Test Coverage Improvement
+
+This PR adds test coverage for \`${targetFilePath}\`.
+
+### ⚠️ Safety Rules
+- ✅ Contains ONLY test files (\`*.test.ts\`)
+- ✅ No production code modified
+- ✅ Based on default branch (\`${baseBranch}\`)
+- ❌ Tests NOT executed by bot
+- ❌ NO auto-merge
+
+### Review Guidelines
+1. Review the test cases for correctness
+2. Run tests locally: \`npm test ${testFilePath}\`
+3. Verify tests pass in CI
+4. Merge when satisfied with test quality
+
+### File Changes
+- **Added**: \`${testFilePath}\`
+
+---
+Generated by AI Coverage Improvement Bot 🤖`,
+  });
+
+  return {
+    url: pr.html_url,
+    number: pr.number,
+    headBranch: branchName,
+  };
+};
+
+/**
+ * Updates an existing PR branch with new commits
+ */
+const updatePRBranch = async (
+  client: Octokit,
+  owner: string,
+  repo: string,
+  branchName: string,
+  testFilePath: string,
+  testContent: string,
+  baseBranch: string,
+): Promise<void> => {
+  // Get current branch SHA
+  const { data: refData } = await client.git.getRef({
+    owner,
+    repo,
+    ref: `heads/${branchName}`,
+  });
+  const currentSha = refData.object.sha;
+
+  // Create blob for updated test file content
+  const { data: blobData } = await client.git.createBlob({
+    owner,
+    repo,
+    content: Buffer.from(testContent).toString('base64'),
+    encoding: 'base64',
+  });
+
+  // Get current tree
+  const { data: currentCommit } = await client.git.getCommit({
+    owner,
+    repo,
+    commit_sha: currentSha,
+  });
+
+  // Create new tree with updated test file
+  const { data: newTree } = await client.git.createTree({
+    owner,
+    repo,
+    base_tree: currentCommit.tree.sha,
+    tree: [
+      {
+        path: testFilePath,
+        mode: '100644',
+        type: 'blob',
+        sha: blobData.sha,
+      },
+    ],
+  });
+
+  // Create new commit
+  const { data: newCommit } = await client.git.createCommit({
+    owner,
+    repo,
+    message: `Update tests for ${testFilePath}\n\nUpdated by AI Coverage Improvement Bot`,
+    tree: newTree.sha,
+    parents: [currentSha],
+  });
+
+  // Update branch reference
+  await client.git.updateRef({
+    owner,
+    repo,
+    ref: `heads/${branchName}`,
+    sha: newCommit.sha,
+  });
+};
+

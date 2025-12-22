@@ -8,12 +8,19 @@ declare module '@nestjs/common' {
   export interface CanActivate {
     canActivate(context: ExecutionContext): boolean | Promise<boolean>;
   }
+  export interface OnModuleInit {
+    onModuleInit(): Promise<void> | void;
+  }
+  export interface OnModuleDestroy {
+    onModuleDestroy(): Promise<void> | void;
+  }
   export function Module(metadata: any): ClassDecorator;
   export function Controller(path?: string): ClassDecorator;
   export function Get(path?: string): MethodDecorator;
   export function Post(path?: string): MethodDecorator;
   export function Param(param?: string): ParameterDecorator;
   export function Query(param?: string): ParameterDecorator;
+  export function Body(): ParameterDecorator;
   export function Res(): ParameterDecorator;
   export function Injectable(): ClassDecorator;
   export class NotFoundException extends Error {
@@ -45,4 +52,17 @@ declare module '@nestjs/testing' {
 
 declare module 'bullmq';
 declare module 'supertest';
+
+declare module '@prisma/client' {
+  export class PrismaClient {
+    $connect(): Promise<void>;
+    $disconnect(): Promise<void>;
+    improvementJob: any;
+    coverageSnapshot: any;
+    coverageFileMetric: any;
+    githubInstallation: any;
+    repository: any;
+    aIExecution: any;
+  }
+}
 

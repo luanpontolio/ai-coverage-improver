@@ -32,41 +32,49 @@ model Repository {
 }
 
 model CoverageSnapshot {
-  id          String   @id @default(cuid())
-  repository  Repository @relation(fields: [repositoryId], references: [id])
-  repositoryId String
-  ref         String
-  commitSha   String?
-  sourcePath  String
-  format      String
-  createdAt   DateTime @default(now())
-  files       CoverageFileMetric[]
+  id                 String   @id @default(cuid())
+  repository         Repository @relation(fields: [repositoryId], references: [id])
+  repositoryId       String
+  ref                String
+  commitSha          String?
+  coverageSourcePath String
+  format             String
+  thresholdPct       Float
+  createdAt          DateTime @default(now())
+  files              CoverageFileMetric[]
+  
+  @@index([repositoryId, ref])
 }
 
 model CoverageFileMetric {
-  id          String   @id @default(cuid())
-  snapshot    CoverageSnapshot @relation(fields: [snapshotId], references: [id])
-  snapshotId  String
-  filePath    String
-  coveragePct Float
+  id               String   @id @default(cuid())
+  snapshot         CoverageSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  snapshotId       String
+  filePath         String
+  coveragePct      Float
   isBelowThreshold Boolean
+  
+  @@index([snapshotId])
 }
 
 model ImprovementJob {
-  id             String   @id @default(cuid())
-  repository     Repository @relation(fields: [repositoryId], references: [id])
-  repositoryId   String
-  targetFilePath String
-  status         String
+  id                String   @id @default(cuid())
+  repository        Repository @relation(fields: [repositoryId], references: [id])
+  repositoryId      String
+  targetFilePath    String
+  status            String   // queued | running | succeeded | failed
   requestedByUserId String?
-  createdAt      DateTime @default(now())
-  startedAt      DateTime?
-  finishedAt     DateTime?
-  failureCode    String?
-  failureMessage String?
-  pullRequestUrl String?
+  createdAt         DateTime @default(now())
+  startedAt         DateTime?
+  finishedAt        DateTime?
+  failureCode       String?
+  failureMessage    String?
+  pullRequestUrl    String?
   pullRequestNumber Int?
-  executions     AIExecution[]
+  executions        AIExecution[]
+  
+  @@index([repositoryId, targetFilePath, status])
+  @@index([status])
 }
 
 model AIExecution {
