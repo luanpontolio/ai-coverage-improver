@@ -3,6 +3,7 @@ import { RequestCoverageImprovementOperation } from '../../../application/operat
 
 interface RequestImprovementBody {
   filePath: string;
+  requestedByUserId: string;
 }
 
 @Controller('repos/:repoId/improvements')
@@ -16,16 +17,11 @@ export class ImprovementsController {
     @Param('repoId') repoId: string,
     @Body() body: RequestImprovementBody,
   ) {
-    // Get current user and check admin permissions (MVP placeholders)
-    const requestedByUserId = 'demo-user';
-    const isAdmin = true;
-
     // Execute operation
     const { job, reused } = await this.requestCoverageImprovementOperation.execute({
       repositoryId: repoId,
       filePath: body.filePath,
-      requestedByUserId,
-      isAdmin,
+      requestedByUserId: body.requestedByUserId,
     });
 
     // Return job details

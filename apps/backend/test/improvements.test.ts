@@ -3,6 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/root.module';
+import { cleanDatabase, createMockRepository } from './setup';
 
 describe('Improvements API (e2e)', () => {
   let app: INestApplication;
@@ -16,6 +17,15 @@ describe('Improvements API (e2e)', () => {
     await app.init();
   });
 
+  beforeEach(async () => {
+    await cleanDatabase();
+    await createMockRepository('demo-repo', {
+      name: 'demo-repo',
+      owner: 'demo-user',
+      defaultBranch: 'main',
+    });
+  });
+
   afterAll(async () => {
     await app.close();
   });
@@ -24,7 +34,7 @@ describe('Improvements API (e2e)', () => {
     it('accepts improvement job and returns job payload for admin users', async () => {
       const res = await request(app.getHttpServer())
         .post('/repos/demo-repo/improvements')
-        .send({ filePath: 'src/utils.ts' })
+        .send({ filePath: 'src/utils.ts', requestedByUserId: 'demo-user' })
         .expect(201);
 
       expect(res.body.job).toMatchObject({
@@ -40,16 +50,16 @@ describe('Improvements API (e2e)', () => {
     it('reuses existing job for same repo/file while queued or running', async () => {
       // Create first job
       const first = await request(app.getHttpServer())
-        .post('/repos/demo-repo-2/improvements')
-        .send({ filePath: 'src/component.ts' })
+        .post('/repos/demo-repo/improvements')
+        .send({ filePath: 'src/component.ts', requestedByUserId: 'demo-user' })
         .expect(201);
 
       expect(first.body.reused).toBe(false);
 
       // Attempt to create duplicate job
       const second = await request(app.getHttpServer())
-        .post('/repos/demo-repo-2/improvements')
-        .send({ filePath: 'src/component.ts' })
+        .post('/repos/demo-repo/improvements')
+        .send({ filePath: 'src/component.ts', requestedByUserId: 'demo-user' })
         .expect(201);
 
       expect(second.body.reused).toBe(true);
@@ -71,13 +81,13 @@ describe('Improvements API (e2e)', () => {
     it('returns 404 for non-existent repository', async () => {
       const res = await request(app.getHttpServer())
         .post('/repos/non-existent-repo/improvements')
-        .send({ filePath: 'src/file.ts' })
+        .send({ filePath: 'src/file.ts', requestedByUserId: 'demo-user' })
         .expect(404);
 
       expect(res.body.message).toMatch(/not found|not accessible/i);
     });
 
-    it('validates required filePath parameter', async () => {
+    it('validates required filePath and requestedByUserId parameters', async () => {
       const res = await request(app.getHttpServer())
         .post('/repos/demo-repo/improvements')
         .send({})
@@ -88,13 +98,13 @@ describe('Improvements API (e2e)', () => {
 
     it('handles different file paths for same repository', async () => {
       const file1 = await request(app.getHttpServer())
-        .post('/repos/demo-repo-3/improvements')
-        .send({ filePath: 'src/file1.ts' })
+        .post('/repos/demo-repo/improvements')
+        .send({ filePath: 'src/file1.ts', requestedByUserId: 'demo-user' })
         .expect(201);
 
       const file2 = await request(app.getHttpServer())
-        .post('/repos/demo-repo-3/improvements')
-        .send({ filePath: 'src/file2.ts' })
+        .post('/repos/demo-repo/improvements')
+        .send({ filePath: 'src/file2.ts', requestedByUserId: 'demo-user' })
         .expect(201);
 
       expect(file1.body.job.id).not.toBe(file2.body.job.id);
@@ -104,8 +114,8 @@ describe('Improvements API (e2e)', () => {
 
     it('includes job metadata in response', async () => {
       const res = await request(app.getHttpServer())
-        .post('/repos/demo-repo-4/improvements')
-        .send({ filePath: 'src/service.ts' })
+        .post('/repos/demo-repo/improvements')
+        .send({ filePath: 'src/service.ts', requestedByUserId: 'demo-user' })
         .expect(201);
 
       expect(res.body.job).toHaveProperty('id');

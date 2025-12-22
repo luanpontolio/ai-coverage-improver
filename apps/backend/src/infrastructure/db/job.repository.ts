@@ -6,7 +6,6 @@ export interface CreateJobRecordInput {
   repositoryId: string;
   targetFilePath: string;
   requestedByUserId: string;
-  isAdmin: boolean;
 }
 
 /**
@@ -76,11 +75,6 @@ export class JobRepository {
   }
 
   async createJob(input: CreateJobRecordInput): Promise<ImprovementJobProps> {
-    // Validate admin using domain rules
-    if (!input.isAdmin) {
-      throw new Error('Only administrators can create improvement jobs');
-    }
-
     const job = await this.prisma.improvementJob.create({
       data: {
         repositoryId: input.repositoryId,

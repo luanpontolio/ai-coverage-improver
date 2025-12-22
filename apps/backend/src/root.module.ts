@@ -13,6 +13,7 @@ import { RunCoverageImprovementOperation } from './application/operations/run-co
 
 // Infrastructure Adapters
 import { GitHubReposAdapter } from './infrastructure/github/repos.adapter';
+import { GitHubAuthAdapter } from './infrastructure/github/auth.adapter';
 import { CoverageSourceAdapter } from './infrastructure/github/coverage-source.adapter';
 import { ImprovementQueue } from './infrastructure/queue';
 
@@ -23,6 +24,8 @@ import { PrismaService } from './infrastructure/db/prisma.service';
 import { CoverageRepository } from './infrastructure/db/coverage.repository';
 import { JobRepository } from './infrastructure/db/job.repository';
 import { InstallationRepository } from './infrastructure/db/installation.repository';
+import { CompleteGithubAuthOperation } from './application/operations/complete-github-auth.operation';
+import { StartGithubAuthOperation } from './application/operations/start-github-auth.operation';
 
 @Module({
   imports: [],
@@ -39,9 +42,12 @@ import { InstallationRepository } from './infrastructure/db/installation.reposit
     AnalyzeRepositoryCoverageOperation,
     RequestCoverageImprovementOperation,
     RunCoverageImprovementOperation,
+    StartGithubAuthOperation,
+    CompleteGithubAuthOperation,
 
     // Infrastructure Adapters
     GitHubReposAdapter,
+    GitHubAuthAdapter,
     CoverageSourceAdapter,
     ImprovementQueue,
 

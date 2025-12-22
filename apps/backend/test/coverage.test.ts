@@ -1,8 +1,8 @@
-/// <reference path="../src/types/shims.d.ts" />
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/root.module';
+import { cleanDatabase, createMockRepository } from './setup';
 
 describe('Coverage API (e2e)', () => {
   let app: INestApplication;
@@ -14,6 +14,14 @@ describe('Coverage API (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     await app.init();
+
+    // Clean database and create mock repository
+    await cleanDatabase();
+    await createMockRepository('demo-repo', {
+      name: 'demo-repo',
+      owner: 'demo-user',
+      defaultBranch: 'main',
+    });
   });
 
   afterAll(async () => {

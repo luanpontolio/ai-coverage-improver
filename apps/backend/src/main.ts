@@ -1,11 +1,23 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import session from 'express-session';
 import { AppModule } from './root.module';
 import { LoggingMiddleware } from './middleware/logging';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.use(new LoggingMiddleware().use);
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET || 'dev-session-secret',
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        httpOnly: true,
+        sameSite: 'lax',
+      },
+    }),
+  );
   await app.listen(3000);
   Logger.log('API listening on http://localhost:3000');
 }
@@ -15,4 +27,3 @@ bootstrap().catch((err) => {
   console.error('Failed to start API', err);
   process.exit(1);
 });
-

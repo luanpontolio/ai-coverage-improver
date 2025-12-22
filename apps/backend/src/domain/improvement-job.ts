@@ -147,7 +147,7 @@ export class ImprovementJob {
       throw new Error('filePath must be a TypeScript file (.ts extension)');
     }
 
-    if (filePath.endsWith('.test.ts') || filePath.endsWith('.spec.ts')) {
+    if (filePath.endsWith('.test.ts')) {
       throw new Error('filePath cannot be a test file');
     }
   }

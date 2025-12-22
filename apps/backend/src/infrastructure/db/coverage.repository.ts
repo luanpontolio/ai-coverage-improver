@@ -47,7 +47,7 @@ export class CoverageRepository {
           commitSha: input.commitSha,
           files: {
             deleteMany: {}, // Remove old files
-            create: input.files.map((file) => ({
+            create: input.files.map((file: CoverageFileMetric) => ({
               filePath: file.filePath,
               coveragePct: file.coveragePct,
               isBelowThreshold: file.isBelowThreshold,
@@ -68,7 +68,7 @@ export class CoverageRepository {
         thresholdPct: updated.thresholdPct,
         createdAt: updated.createdAt,
         commitSha: updated.commitSha || undefined,
-        files: updated.files.map((f) => ({
+        files: updated.files.map((f: CoverageFileMetric) => ({
           filePath: f.filePath,
           coveragePct: f.coveragePct,
           isBelowThreshold: f.isBelowThreshold,
@@ -86,7 +86,7 @@ export class CoverageRepository {
         thresholdPct: input.thresholdPct,
         commitSha: input.commitSha,
         files: {
-          create: input.files.map((file) => ({
+          create: input.files.map((file: CoverageFileMetric) => ({
             filePath: file.filePath,
             coveragePct: file.coveragePct,
             isBelowThreshold: file.isBelowThreshold,
@@ -107,7 +107,7 @@ export class CoverageRepository {
       thresholdPct: created.thresholdPct,
       createdAt: created.createdAt,
       commitSha: created.commitSha || undefined,
-      files: created.files.map((f) => ({
+      files: created.files.map((f: CoverageFileMetric) => ({
         filePath: f.filePath,
         coveragePct: f.coveragePct,
         isBelowThreshold: f.isBelowThreshold,
@@ -135,7 +135,7 @@ export class CoverageRepository {
       thresholdPct: snapshot.thresholdPct,
       createdAt: snapshot.createdAt,
       commitSha: snapshot.commitSha || undefined,
-      files: snapshot.files.map((f) => ({
+      files: snapshot.files.map((f: CoverageFileMetric) => ({
         filePath: f.filePath,
         coveragePct: f.coveragePct,
         isBelowThreshold: f.isBelowThreshold,

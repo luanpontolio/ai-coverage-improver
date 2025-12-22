@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { GitHubReposAdapter } from '../../infrastructure/github/repos.adapter';
 import { JobRepository } from '../../infrastructure/db/job.repository';
 import { ImprovementQueue } from '../../infrastructure/queue';
@@ -8,7 +8,6 @@ export interface RequestCoverageImprovementInput {
   repositoryId: string;
   filePath: string;
   requestedByUserId: string;
-  isAdmin: boolean;
 }
 
 export interface RequestCoverageImprovementOutput {
@@ -18,7 +17,7 @@ export interface RequestCoverageImprovementOutput {
 
 /**
  * Operation: Request Coverage Improvement
- * 
+ *
  * Creates a new improvement job for a file and enqueues it for processing.
  * Reuses existing open jobs to avoid duplicates.
  */
@@ -32,15 +31,15 @@ export class RequestCoverageImprovementOperation {
 
   async execute(input: RequestCoverageImprovementInput): Promise<RequestCoverageImprovementOutput> {
     // Validate input using domain rules
-    ImprovementJob.validateTargetFilePath(input.filePath);
-
-    // Check admin permissions
-    if (!input.isAdmin) {
-      throw new Error('Only repository administrators can request coverage improvements');
+    if (!input.filePath || !input.requestedByUserId) {
+      throw new BadRequestException('File path is required');
     }
+
+    ImprovementJob.validateTargetFilePath(input.filePath);
 
     // Verify repository exists
     const repo = await this.githubReposAdapter.findRepositoryById(input.repositoryId);
+    console.log('repo', repo);
     if (!repo) {
       throw new NotFoundException('Repository not found or not accessible');
     }
@@ -65,7 +64,6 @@ export class RequestCoverageImprovementOperation {
       repositoryId: repo.id,
       targetFilePath: normalizedFilePath,
       requestedByUserId: input.requestedByUserId,
-      isAdmin: input.isAdmin,
     });
 
     const job = new ImprovementJob(createdJobData);
