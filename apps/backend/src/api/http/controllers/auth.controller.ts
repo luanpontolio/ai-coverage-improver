@@ -8,7 +8,11 @@ export class AuthController {
   constructor(
     private readonly startGithubAuthOperation: StartGithubAuthOperation,
     private readonly completeGithubAuthOperation: CompleteGithubAuthOperation,
-  ) {}
+  ) {
+    console.log('AuthController constructor');
+    console.log('startGithubAuthOperation', this.startGithubAuthOperation);
+    console.log('completeGithubAuthOperation', this.completeGithubAuthOperation);
+  }
 
   @Post('start')
   async start(
@@ -16,6 +20,8 @@ export class AuthController {
     @Res() res: Response,
     @Query('returnTo') returnTo?: string,
   ) {
+    console.log('start', req.session);
+    console.log('returnTo', this.startGithubAuthOperation);
     const { redirectUrl } = await this.startGithubAuthOperation.execute({
       session: req.session,
       returnTo,
