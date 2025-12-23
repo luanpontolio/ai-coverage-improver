@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { parseCoverageContent } from '@coverage/parser';
+import { parseCoverageContent } from '../../../../../packages/coverage/src/parser';
 import { GitHubReposAdapter } from '../../infrastructure/github/repos.adapter';
 import { CoverageSourceAdapter } from '../../infrastructure/github/coverage-source.adapter';
 import { CoverageRepository } from '../../infrastructure/db/coverage.repository';

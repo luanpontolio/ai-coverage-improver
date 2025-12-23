@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CoverageFileMetric, CoverageFormat } from '@coverage/parser';
+import { CoverageFileMetric, CoverageFormat } from '../../../../../packages/coverage/src/parser';
 import { PrismaService } from './prisma.service';
 
 export interface CoverageSnapshotRecord {

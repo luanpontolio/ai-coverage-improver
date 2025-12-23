@@ -1,17 +1,21 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
+
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+
     "outDir": "dist",
     "baseUrl": ".",
+
     "paths": {
       "@github/*": ["packages/github/src/*"],
       "@coverage/*": ["packages/coverage/src/*"]
@@ -19,4 +23,3 @@
   },
   "include": ["apps", "packages"]
 }
-

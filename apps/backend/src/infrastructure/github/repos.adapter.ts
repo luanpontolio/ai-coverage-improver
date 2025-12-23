@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { findRepoById, listInstallationRepos } from '@github/repos';
+import { findRepoById, listInstallationRepos } from '../../../../../packages/github/src/repos';
 import { Repository } from '../../domain/repository';
 
 /**

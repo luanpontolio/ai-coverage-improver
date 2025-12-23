@@ -20,8 +20,6 @@ export class AuthController {
     @Res() res: Response,
     @Query('returnTo') returnTo?: string,
   ) {
-    console.log('start', req.session);
-    console.log('returnTo', this.startGithubAuthOperation);
     const { redirectUrl } = await this.startGithubAuthOperation.execute({
       session: req.session,
       returnTo,

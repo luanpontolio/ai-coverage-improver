@@ -4,7 +4,8 @@
   "private": true,
   "main": "dist/main.js",
   "scripts": {
-    "dev": "tsx watch src/main.ts",
+    "dev": "ts-node --transpile-only src/main.ts",
+    "dev:watch": "ts-node-dev --respawn --transpile-only src/main.ts",
     "build": "tsc",
     "start": "node dist/main.js",
     "test": "jest"

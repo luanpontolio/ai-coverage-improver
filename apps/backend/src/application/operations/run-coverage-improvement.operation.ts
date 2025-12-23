@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { JobRepository } from '../../infrastructure/db/job.repository';
-import { createGitHubClient, createOrUpdatePullRequest } from '@github/pr';
+import { createGitHubClient, createOrUpdatePullRequest } from '../../../../../packages/github/src/pr';
 import { ImprovementJob, FailureCode } from '../../domain/improvement-job';
 import * as fs from 'fs/promises';
 import * as path from 'path';

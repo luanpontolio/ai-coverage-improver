@@ -1,4 +1,4 @@
-import { CoverageFileMetric } from '@coverage/parser';
+import { CoverageFileMetric } from '../../../../packages/coverage/src/parser';
 
 /**
  * Domain entity representing a coverage snapshot for a repository
