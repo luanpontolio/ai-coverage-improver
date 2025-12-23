@@ -19,10 +19,10 @@ export interface ExchangeCodeResult {
 }
 
 /**
- * GitHub Auth Adapter
+ * GitHub Auth Adapter (fetch-based)
  *
- * Builds OAuth URLs for the GitHub App flow and exchanges OAuth codes for tokens.
- * Keeps HTTP + GitHub-specific details out of operations.
+ * Builds the OAuth authorize URL and exchanges OAuth codes using plain fetch,
+ * avoiding Octokit auth packages to keep compatibility with CommonJS/Node 22.
  */
 @Injectable()
 export class GitHubAuthAdapter {
@@ -34,8 +34,8 @@ export class GitHubAuthAdapter {
     return process.env.GITHUB_CLIENT_SECRET ?? '';
   }
 
-  private get appBaseUrl(): string {
-    return process.env.APP_BASE_URL ?? 'http://localhost:3000';
+  private get webAppUrl(): string {
+    return process.env.WEB_APP_URL ?? 'http://localhost:3001';
   }
 
   private requireEnv() {
@@ -47,11 +47,12 @@ export class GitHubAuthAdapter {
   buildAuthUrl(returnTo?: string): { redirectUrl: string; state: string } {
     this.requireEnv();
     const state = randomUUID();
-    const redirectUri = new URL('/auth/github/callback', this.appBaseUrl).toString();
+    // GitHub will redirect to the web app's callback page
+    const callbackUrl = new URL('/callback', this.webAppUrl).toString();
     const params = new URLSearchParams({
       client_id: this.clientId,
       state,
-      redirect_uri: redirectUri,
+      redirect_uri: callbackUrl,
       scope: 'read:user read:org repo',
       allow_signup: 'false',
     });
