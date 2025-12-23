@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 
+// This file is no longer used - auth handled client-side with direct backend API calls
 export default function handler(_req: NextApiRequest, res: NextApiResponse) {
-  // Placeholder: server would proxy to API start endpoint
-  res.status(200).json({ redirectUrl: 'https://github.com/login/oauth/authorize' });
+  res.status(404).json({ error: 'Use direct backend API calls' });
 }
 
