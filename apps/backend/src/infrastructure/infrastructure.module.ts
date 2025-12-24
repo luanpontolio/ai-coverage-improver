@@ -7,6 +7,7 @@ import { PrismaService } from './db/prisma.service';
 import { CoverageRepository } from './db/coverage.repository';
 import { JobRepository } from './db/job.repository';
 import { InstallationRepository } from './db/installation.repository';
+import { RepositoryRepository } from './db/repository.repository';
 
 /**
  * InfrastructureModule
@@ -23,6 +24,7 @@ import { InstallationRepository } from './db/installation.repository';
     CoverageRepository,
     JobRepository,
     InstallationRepository,
+    RepositoryRepository,
   ],
   exports: [
     GitHubReposAdapter,
@@ -33,6 +35,7 @@ import { InstallationRepository } from './db/installation.repository';
     CoverageRepository,
     JobRepository,
     InstallationRepository,
+    RepositoryRepository,
   ],
 })
 export class InfrastructureModule {}

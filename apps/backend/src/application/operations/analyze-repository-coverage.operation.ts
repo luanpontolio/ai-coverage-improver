@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { parseCoverageContent } from '../../../../../packages/coverage/src/parser';
-import { GitHubReposAdapter } from '../../infrastructure/github/repos.adapter';
+import { RepositoryRepository } from '../../infrastructure/db/repository.repository';
 import { CoverageSourceAdapter } from '../../infrastructure/github/coverage-source.adapter';
 import { CoverageRepository } from '../../infrastructure/db/coverage.repository';
 import { CoverageSnapshot } from '../../domain/coverage-snapshot';
@@ -25,22 +25,23 @@ export class AnalyzeRepositoryCoverageOperation {
   private readonly DEFAULT_THRESHOLD_PCT = 80;
 
   constructor(
-    private readonly githubReposAdapter: GitHubReposAdapter,
+    private readonly repositoryRepository: RepositoryRepository,
     private readonly coverageSourceAdapter: CoverageSourceAdapter,
     private readonly coverageRepository: CoverageRepository,
   ) {}
 
   async execute(input: AnalyzeRepositoryCoverageInput): Promise<AnalyzeRepositoryCoverageOutput> {
-    // Find repository
-    const repo = await this.githubReposAdapter.findRepositoryById(input.repositoryId);
-    if (!repo) {
-      throw new NotFoundException('Repository not found or not accessible');
+    // Find repository in database (contains the correct database ID)
+    const dbRepo = await this.repositoryRepository.findById(input.repositoryId);
+    if (!dbRepo) {
+      throw new NotFoundException('Repository not found in database');
     }
 
-    // Fetch coverage source file
+    // Fetch coverage source file from GitHub
+    const repoFullName = `${dbRepo.owner}/${dbRepo.name}`;
     const source = await this.coverageSourceAdapter.fetchCoverageSource(
-      repo.id,
-      repo.defaultBranch,
+      repoFullName,
+      dbRepo.defaultBranch,
     );
 
     // Parse coverage content
@@ -51,10 +52,10 @@ export class AnalyzeRepositoryCoverageOperation {
       thresholdPct,
     });
 
-    // Create domain entity
+    // Create domain entity with database ID
     const snapshot = new CoverageSnapshot(
-      repo.id,
-      repo.defaultBranch,
+      dbRepo.id, // Use database CUID
+      dbRepo.defaultBranch,
       source.coverageSourcePath,
       parsed.thresholdPct,
       parsed.files,

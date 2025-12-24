@@ -8,13 +8,15 @@ import { Repository } from '../../domain/repository';
  */
 @Injectable()
 export class GitHubReposAdapter {
-  async listInstallationRepositories(): Promise<Repository[]> {
-    const githubRepos = await listInstallationRepos();
+  async listInstallationRepositories(accessToken: string): Promise<Repository[]> {
+    console.log('listInstallationRepositories', accessToken);
+    const githubRepos = await listInstallationRepos(accessToken);
+    console.log('githubRepos', githubRepos);
     return githubRepos.map((repo) => Repository.fromGitHubRepo(repo));
   }
 
-  async findRepositoryById(repoId: string): Promise<Repository | undefined> {
-    const githubRepo = await findRepoById(repoId);
+  async findRepositoryById(repoId: string, accessToken: string): Promise<Repository | undefined> {
+    const githubRepo = await findRepoById(repoId, accessToken);
     return githubRepo ? Repository.fromGitHubRepo(githubRepo) : undefined;
   }
 }

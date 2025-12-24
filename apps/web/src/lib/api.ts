@@ -85,3 +85,47 @@ export async function getCurrentUser(): Promise<User | null> {
   }
 }
 
+// Repository types
+export interface Repository {
+  id: string;
+  owner: string;
+  name: string;
+  defaultBranch: string;
+}
+
+export interface RepositoriesResponse {
+  repos: Repository[];
+}
+
+// Coverage types
+export interface CoverageFile {
+  filePath: string;
+  coveragePct: number;
+  isBelowThreshold: boolean;
+}
+
+export interface CoverageResponse {
+  repoId: string;
+  ref: string;
+  coverageSourcePath: string;
+  thresholdPct: number;
+  files: CoverageFile[];
+}
+
+/**
+ * List repositories from installation
+ */
+export async function listRepositories(): Promise<Repository[]> {
+  const response = await apiRequest<RepositoriesResponse>('/repos');
+  return response.repos;
+}
+
+/**
+ * Get coverage data for a repository
+ */
+export async function getRepositoryCoverage(
+  repoId: string
+): Promise<CoverageResponse> {
+  return apiRequest<CoverageResponse>(`/repos/${repoId}/coverage`);
+}
+

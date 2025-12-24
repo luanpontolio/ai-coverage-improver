@@ -5,24 +5,31 @@
 export class Repository {
   constructor(
     public readonly id: string,
-    public readonly name: string,
+    public readonly provider: string,
     public readonly owner: string,
+    public readonly name: string,
     public readonly defaultBranch: string,
-    public readonly fullName: string,
+    public readonly installationId?: string,
   ) {}
 
   static fromGitHubRepo(githubRepo: any): Repository {
+    console.log('githubRepo', githubRepo);
     return new Repository(
       githubRepo.id,
-      githubRepo.name,
+      'github',
       githubRepo.owner,
+      githubRepo.name,
       githubRepo.defaultBranch,
-      githubRepo.fullName,
+      githubRepo.installationId,
     );
   }
 
   get qualifiedName(): string {
     return `${this.owner}/${this.name}`;
+  }
+
+  get fullName(): string {
+    return this.qualifiedName;
   }
 }
 

@@ -11,6 +11,7 @@ import * as path from 'path';
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor() {
     const defaultDb = `file:${path.join(process.cwd(), 'apps/backend/prisma/data/dev.db')}`;
+    console.log('=============== defaultDb ===============', defaultDb);
     super({
       datasources: {
         db: {

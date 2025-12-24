@@ -1,11 +1,10 @@
 import 'reflect-metadata';
-
-import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import session from 'express-session';
 import { AppModule } from './root.module';
 import { LoggingMiddleware } from './middleware/logging';
+
+const session = require('express-session');
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {

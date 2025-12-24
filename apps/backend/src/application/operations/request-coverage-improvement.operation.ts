@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { GitHubReposAdapter } from '../../infrastructure/github/repos.adapter';
+import { RepositoryRepository } from '../../infrastructure/db/repository.repository';
 import { JobRepository } from '../../infrastructure/db/job.repository';
 import { ImprovementQueue } from '../../infrastructure/queue';
 import { ImprovementJob } from '../../domain/improvement-job';
@@ -24,7 +24,7 @@ export interface RequestCoverageImprovementOutput {
 @Injectable()
 export class RequestCoverageImprovementOperation {
   constructor(
-    private readonly githubReposAdapter: GitHubReposAdapter,
+    private readonly repositoryRepository: RepositoryRepository,
     private readonly jobRepository: JobRepository,
     private readonly queue: ImprovementQueue,
   ) {}
@@ -37,11 +37,10 @@ export class RequestCoverageImprovementOperation {
 
     ImprovementJob.validateTargetFilePath(input.filePath);
 
-    // Verify repository exists
-    const repo = await this.githubReposAdapter.findRepositoryById(input.repositoryId);
-    console.log('repo', repo);
+    // Verify repository exists in database
+    const repo = await this.repositoryRepository.findById(input.repositoryId);
     if (!repo) {
-      throw new NotFoundException('Repository not found or not accessible');
+      throw new NotFoundException('Repository not found');
     }
 
     // Normalize file path using domain rules

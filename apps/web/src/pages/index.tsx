@@ -3,57 +3,96 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../contexts/AuthContext';
 import { CoverageTable } from '../components/CoverageTable';
 import { JobStatus } from '../components/JobStatus';
+import {
+  listRepositories,
+  getRepositoryCoverage,
+  type Repository,
+  type CoverageResponse,
+} from '../lib/api';
 
-type Repo = { id: string; owner: string; name: string; defaultBranch: string };
-
-const repos: Repo[] = [
-  { id: 'demo-repo', owner: 'octo-org', name: 'coverage-demo', defaultBranch: 'main' },
-  { id: 'demo-repo-json', owner: 'octo-org', name: 'coverage-json', defaultBranch: 'main' },
-];
-
-const coverageByRepo = {
-  'demo-repo': {
-    thresholdPct: 80,
-    files: [
-      { filePath: 'src/index.ts', coveragePct: 80, isBelowThreshold: false },
-      { filePath: 'src/utils.ts', coveragePct: 60, isBelowThreshold: true },
-    ],
-  },
-  'demo-repo-json': {
-    thresholdPct: 80,
-    files: [
-      { filePath: 'src/lib/a.ts', coveragePct: 72, isBelowThreshold: true },
-      { filePath: 'src/lib/b.tsx', coveragePct: 90, isBelowThreshold: false },
-    ],
-  },
+type DemoJob = {
+  id: string;
+  repositoryId: string;
+  targetFilePath: string;
+  status: 'queued' | 'running' | 'succeeded' | 'failed';
+  requestedByUserId: string;
+  createdAt: string;
+  pullRequestUrl?: string;
 };
 
 export default function Home() {
   const router = useRouter();
-  const { user, isLoading } = useAuth();
-  const [selectedRepoId, setSelectedRepoId] = useState<string>(repos[0]?.id ?? '');
-  type DemoJob = {
-    id: string;
-    repositoryId: string;
-    targetFilePath: string;
-    status: 'queued' | 'running' | 'succeeded' | 'failed';
-    requestedByUserId: string;
-    createdAt: string;
-    pullRequestUrl?: string;
-  };
+  const { user, isLoading: isAuthLoading } = useAuth();
+  
+  const [repos, setRepos] = useState<Repository[]>([]);
+  const [isLoadingRepos, setIsLoadingRepos] = useState(false);
+  const [reposError, setReposError] = useState<string | null>(null);
+  
+  const [selectedRepoId, setSelectedRepoId] = useState<string>('');
+  const [coverage, setCoverage] = useState<CoverageResponse | null>(null);
+  const [isLoadingCoverage, setIsLoadingCoverage] = useState(false);
+  const [coverageError, setCoverageError] = useState<string | null>(null);
+  
   const [job, setJob] = useState<DemoJob | undefined>(undefined);
-  const coverage = useMemo(() => coverageByRepo[selectedRepoId as keyof typeof coverageByRepo], [selectedRepoId]);
-  const selectedRepo = useMemo(() => repos.find((repo) => repo.id === selectedRepoId), [selectedRepoId]);
+  
+  const selectedRepo = useMemo(
+    () => repos.find((repo) => repo.id === selectedRepoId),
+    [repos, selectedRepoId]
+  );
 
+  // Redirect to auth if not authenticated
   useEffect(() => {
-    // Redirect to auth page if not authenticated
-    if (!isLoading && !user) {
+    if (!isAuthLoading && !user) {
       router.push('/auth');
     }
-  }, [user, isLoading, router]);
+  }, [user, isAuthLoading, router]);
 
-  // Show loading state while checking auth
-  if (isLoading) {
+  // Fetch repositories on mount
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchRepos = async () => {
+      setIsLoadingRepos(true);
+      setReposError(null);
+      try {
+        const fetchedRepos = await listRepositories();
+        setRepos(fetchedRepos);
+        if (fetchedRepos.length > 0 && !selectedRepoId) {
+          setSelectedRepoId(fetchedRepos[0].id);
+        }
+      } catch (error: any) {
+        setReposError(error.message || 'Failed to load repositories');
+      } finally {
+        setIsLoadingRepos(false);
+      }
+    };
+
+    fetchRepos();
+  }, [user]);
+
+  // Fetch coverage when repo selection changes
+  useEffect(() => {
+    if (!selectedRepoId) return;
+
+    const fetchCoverage = async () => {
+      setIsLoadingCoverage(true);
+      setCoverageError(null);
+      setCoverage(null);
+      try {
+        const coverageData = await getRepositoryCoverage(selectedRepoId);
+        setCoverage(coverageData);
+      } catch (error: any) {
+        setCoverageError(error.message || 'Failed to load coverage data');
+      } finally {
+        setIsLoadingCoverage(false);
+      }
+    };
+
+    fetchCoverage();
+  }, [selectedRepoId]);
+
+  // Show loading while checking auth
+  if (isAuthLoading) {
     return (
       <div
         style={{
@@ -68,14 +107,21 @@ export default function Home() {
     );
   }
 
-  // Don't render content if not authenticated (will redirect)
+  // Don't render if not authenticated (will redirect)
   if (!user) {
     return null;
   }
 
   return (
     <main style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div
+        style={{
+          marginBottom: '2rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
         <div>
           <h1 style={{ marginBottom: '0.5rem' }}>TypeScript Coverage</h1>
           <p style={{ color: '#666', margin: 0 }}>
@@ -105,50 +151,89 @@ export default function Home() {
 
       <label htmlFor="repo-select">Repository</label>
       <div style={{ margin: '0.5rem 0' }}>
-        <select
-          id="repo-select"
-          value={selectedRepoId}
-          onChange={(event: ChangeEvent<HTMLSelectElement>) => setSelectedRepoId(event.target.value)}
-          style={{ padding: '0.4rem', minWidth: '240px' }}
-        >
-          {repos.map((repo) => (
-            <option key={repo.id} value={repo.id}>
-              {repo.owner}/{repo.name} (default: {repo.defaultBranch})
-            </option>
-          ))}
-        </select>
+        {isLoadingRepos ? (
+          <p>Loading repositories...</p>
+        ) : reposError ? (
+          <p style={{ color: '#c33' }}>Error: {reposError}</p>
+        ) : repos.length === 0 ? (
+          <p style={{ color: '#666' }}>
+            No repositories found. Make sure you have installed the GitHub App on your repositories.
+          </p>
+        ) : (
+          <select
+            id="repo-select"
+            value={selectedRepoId}
+            onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+              setSelectedRepoId(event.target.value)
+            }
+            style={{ padding: '0.4rem', minWidth: '240px' }}
+          >
+            {repos.map((repo) => (
+              <option key={repo.id} value={repo.id}>
+                {repo.owner}/{repo.name} (default: {repo.defaultBranch})
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
-      {coverage ? (
+      {selectedRepoId && (
         <>
-          <p>
-            Showing coverage for <strong>{selectedRepo?.owner}/{selectedRepo?.name}</strong> — files below{' '}
-            {coverage.thresholdPct}% are highlighted.
-          </p>
-          <CoverageTable files={coverage.files} thresholdPct={coverage.thresholdPct} />
-          <div style={{ marginTop: '1rem' }}>
-            <button
-              onClick={() =>
-                setJob({
-                  id: `job-${Date.now()}`,
-                  repositoryId: selectedRepoId,
-                  targetFilePath: coverage.files.find((f) => f.isBelowThreshold)?.filePath ?? 'src/utils.ts',
-                  status: 'succeeded',
-                  requestedByUserId: user.id,
-                  createdAt: new Date().toISOString(),
-                  pullRequestUrl: 'https://github.com/demo/demo-repo/pull/1',
-                })
-              }
+          {isLoadingCoverage ? (
+            <p style={{ marginTop: '1rem' }}>Loading coverage data...</p>
+          ) : coverageError ? (
+            <div
+              style={{
+                marginTop: '1rem',
+                padding: '1rem',
+                backgroundColor: '#fee',
+                border: '1px solid #fcc',
+                borderRadius: '4px',
+              }}
             >
-              Request improvement (demo)
-            </button>
-          </div>
-          <JobStatus job={job} />
+              <p style={{ color: '#c33', margin: 0 }}>Error: {coverageError}</p>
+            </div>
+          ) : coverage ? (
+            <>
+              <p style={{ marginTop: '1rem' }}>
+                Showing coverage for{' '}
+                <strong>
+                  {selectedRepo?.owner}/{selectedRepo?.name}
+                </strong>{' '}
+                — files below {coverage.thresholdPct}% are highlighted.
+              </p>
+              <CoverageTable
+                files={coverage.files}
+                thresholdPct={coverage.thresholdPct}
+              />
+              <div style={{ marginTop: '1rem' }}>
+                <button
+                  onClick={() =>
+                    setJob({
+                      id: `job-${Date.now()}`,
+                      repositoryId: selectedRepoId,
+                      targetFilePath:
+                        coverage.files.find((f) => f.isBelowThreshold)
+                          ?.filePath ?? 'src/utils.ts',
+                      status: 'succeeded',
+                      requestedByUserId: user.id,
+                      createdAt: new Date().toISOString(),
+                      pullRequestUrl: 'https://github.com/demo/demo-repo/pull/1',
+                    })
+                  }
+                >
+                  Request improvement (demo)
+                </button>
+              </div>
+              <JobStatus job={job} />
+            </>
+          ) : (
+            <p style={{ marginTop: '1rem', color: '#666' }}>
+              No coverage data available for this repository yet.
+            </p>
+          )}
         </>
-      ) : (
-        <p>No coverage data for the selected repository yet.</p>
       )}
     </main>
   );
 }
-

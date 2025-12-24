@@ -43,7 +43,7 @@ export class CompleteGithubAuthOperation {
       throw new BadRequestException('Invalid OAuth state');
     }
 
-    const { user, installation } = await this.authAdapter.exchangeCode(input.code);
+    const { accessToken, user, installation } = await this.authAdapter.exchangeCode(input.code);
 
     if (installation) {
       await this.installationRepository.upsert({
@@ -59,6 +59,7 @@ export class CompleteGithubAuthOperation {
         login: user.login,
         installationId: installation?.installationId,
       };
+      input.session.accessToken = accessToken; // Store access token for API calls
       input.session.oauthState = undefined;
       input.session.returnTo = undefined;
     }

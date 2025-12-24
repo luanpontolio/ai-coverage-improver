@@ -1,6 +1,20 @@
 declare module 'bullmq';
 declare module 'supertest';
 
+// Express session extensions
+declare module 'express-session' {
+  interface SessionData {
+    user?: {
+      id: string;
+      login: string;
+      installationId?: string;
+    };
+    accessToken?: string;
+    oauthState?: string;
+    returnTo?: string;
+  }
+}
+
 declare module '@prisma/client' {
   export interface PrismaClientOptions {
     datasources?: {

@@ -23,12 +23,14 @@ model Repository {
   owner           String
   name            String
   defaultBranch   String
-  installationId  String
-  installation    GithubInstallation @relation(fields: [installationId], references: [installationId])
+  installationId  String?
+  installation    GithubInstallation? @relation(fields: [installationId], references: [installationId])
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   coverageSnaps   CoverageSnapshot[]
   improvementJobs ImprovementJob[]
+  
+  @@unique([provider, owner, name], name: "provider_owner_name")
 }
 
 model CoverageSnapshot {
