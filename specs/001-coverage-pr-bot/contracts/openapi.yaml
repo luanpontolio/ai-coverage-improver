@@ -1,0 +1,228 @@
+openapi: 3.0.3
+info:
+  title: TypeScript Coverage API
+  version: 1.0.0
+  description: |
+    API for listing TypeScript coverage and requesting AI-generated test improvements via PRs.
+    Constraints: default-branch only, fixed 80% threshold, tests-only changes, no test execution, no auto-merge.
+servers:
+  - url: /
+tags:
+  - name: auth
+  - name: repos
+  - name: jobs
+  - name: ops
+paths:
+  /health:
+    get:
+      tags: [ops]
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+  /auth/github/start:
+    post:
+      tags: [auth]
+      summary: Begin GitHub sign-in flow
+      responses:
+        "200":
+          description: Start auth (implementation may return redirect URL or set cookie)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  redirectUrl:
+                    type: string
+  /auth/github/callback:
+    get:
+      tags: [auth]
+      summary: Complete GitHub sign-in flow
+      parameters:
+        - in: query
+          name: code
+          required: false
+          schema: { type: string }
+        - in: query
+          name: state
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Signed in
+        "400":
+          description: Invalid callback
+  /repos:
+    get:
+      tags: [repos]
+      summary: List repositories available to the user (where the GitHub App is installed)
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          description: Repository list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  repos:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Repository"
+        "401":
+          description: Not authenticated
+  /repos/{repoId}/coverage:
+    get:
+      tags: [repos]
+      summary: Get coverage summary for TypeScript files on the default branch
+      security:
+        - sessionAuth: []
+      parameters:
+        - in: path
+          name: repoId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Coverage response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoverageResponse"
+        "401":
+          description: Not authenticated
+        "404":
+          description: Repo not found or not accessible
+        "422":
+          description: Coverage unsupported/missing/unparseable
+  /repos/{repoId}/improvements:
+    post:
+      tags: [repos]
+      summary: Request an improvement job for a file below threshold
+      security:
+        - sessionAuth: []
+      parameters:
+        - in: path
+          name: repoId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImprovementRequest"
+      responses:
+        "202":
+          description: Job accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "401":
+          description: Not authenticated
+        "403":
+          description: Not authorized (repo admin/owner required)
+        "404":
+          description: Repo not found or not accessible
+        "409":
+          description: Conflict (e.g., existing job policy)
+  /jobs/{jobId}:
+    get:
+      tags: [jobs]
+      summary: Get job status and result (including PR link when available)
+      security:
+        - sessionAuth: []
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "401":
+          description: Not authenticated
+        "404":
+          description: Job not found
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: session
+  schemas:
+    Repository:
+      type: object
+      properties:
+        id: { type: string }
+        owner: { type: string }
+        name: { type: string }
+        defaultBranch: { type: string }
+    CoverageFile:
+      type: object
+      properties:
+        filePath: { type: string }
+        coveragePct:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+        isBelowThreshold: { type: boolean }
+    CoverageResponse:
+      type: object
+      properties:
+        repoId: { type: string }
+        ref:
+          type: string
+          description: Default branch name used for analysis
+        thresholdPct:
+          type: integer
+          description: Fixed threshold for MVP
+          example: 80
+        coverageSourcePath:
+          type: string
+          description: Repository file path used as coverage input
+          example: coverage/lcov.info
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/CoverageFile"
+    ImprovementRequest:
+      type: object
+      required: [filePath]
+      properties:
+        filePath:
+          type: string
+          description: Target TypeScript file path in the repository
+        coverageSourcePath:
+          type: string
+          description: Optional override; defaults to server configuration
+    Job:
+      type: object
+      properties:
+        id: { type: string }
+        repoId: { type: string }
+        filePath: { type: string }
+        status:
+          type: string
+          enum: [queued, running, succeeded, failed]
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time, nullable: true }
+        finishedAt: { type: string, format: date-time, nullable: true }
+        pullRequestUrl: { type: string, nullable: true }
+        failureMessage: { type: string, nullable: true }
+

@@ -10,7 +10,7 @@ export interface ListInstallationRepositoriesInput {
 
 /**
  * Operation: List Installation Repositories
- * 
+ *
  * Lists all repositories accessible by the user via GitHub OAuth
  * and ensures they're persisted in the database
  */

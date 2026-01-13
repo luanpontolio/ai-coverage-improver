@@ -28,15 +28,14 @@ export class RepositoryRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async upsert(input: UpsertRepositoryInput): Promise<RepositoryRecord> {
-    console.log('=============== input ===============', input);
     const repo = await this.prisma.repository.upsert({
-        where: {
-            provider_owner_name: {
-            provider: input.provider,
-            owner: input.owner,
-            name: input.name,
-            },
+      where: {
+        provider_owner_name: {
+          provider: input.provider,
+          owner: input.owner,
+          name: input.name,
         },
+      },
       create: {
         provider: input.provider,
         owner: input.owner,
@@ -48,16 +47,16 @@ export class RepositoryRepository {
         defaultBranch: input.defaultBranch,
         installationId: input.installationId || null,
       },
-          });
+    });
 
-          return {
-            id: repo.id,
-            provider: repo.provider,
-            owner: repo.owner,
-            name: repo.name,
-            defaultBranch: repo.defaultBranch,
-            installationId: repo.installationId,
-        }
+    return {
+      id: repo.id,
+      provider: repo.provider,
+      owner: repo.owner,
+      name: repo.name,
+      defaultBranch: repo.defaultBranch,
+      installationId: repo.installationId,
+    }
   }
 
   async findById(id: string): Promise<RepositoryRecord | null> {

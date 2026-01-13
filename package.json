@@ -18,7 +18,11 @@
     "db:migrate:deploy": "prisma migrate deploy --schema=apps/backend/prisma/schema.prisma",
     "db:push": "prisma db push --schema=apps/backend/prisma/schema.prisma",
     "db:studio": "prisma studio --schema=apps/backend/prisma/schema.prisma",
-    "db:seed": "node apps/backend/prisma/seed.js"
+    "db:seed": "node apps/backend/prisma/seed.js",
+    "test:coverage": "jest --runInBand --coverage --config jest.config.cjs",
+    "test:backend": "jest --runInBand --config jest.config.cjs apps/backend",
+    "test:backend:coverage": "jest --runInBand --coverage --config jest.config.cjs apps/backend",
+    "test:backend:watch": "jest --watch --config jest.config.cjs apps/backend"
   },
   "devDependencies": {
     "@nestjs/testing": "^11.1.10",

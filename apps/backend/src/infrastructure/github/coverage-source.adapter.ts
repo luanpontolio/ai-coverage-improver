@@ -1,50 +1,74 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { fetchFileContent } from '../../../../../packages/github/src/repos';
 
 /**
  * Infrastructure adapter for fetching coverage source files
- * In MVP, returns sample data. In production, would fetch from GitHub API
+ * Fetches coverage files from GitHub repositories using REST API
  */
 @Injectable()
 export class CoverageSourceAdapter {
-  private readonly SAMPLE_LCOV = `
-TN:
-SF:src/index.ts
-LF:10
-LH:8
-end_of_record
-SF:src/utils.ts
-LF:5
-LH:3
-end_of_record
-`;
-
-  private readonly SAMPLE_JSON = JSON.stringify({
-    'src/lib/a.ts': { lines: { pct: 72 } },
-    'src/lib/b.tsx': { lines: { covered: 9, total: 10 } },
-  });
+  // Possible coverage file paths to try (in order of preference)
+  private readonly COVERAGE_PATHS = [
+    'coverage/lcov.info',
+    'coverage/coverage-final.json',
+    'coverage.json',
+    'lcov.info',
+  ];
 
   /**
-   * Fetch coverage source file from repository
-   * TODO: Implement actual GitHub API fetching
+   * Fetch coverage source file from GitHub repository
+   * Tries multiple common coverage file locations
+   * 
+   * @param repositoryId - Format: "owner/repo"
+   * @param ref - Branch name or commit SHA
+   * @param accessToken - GitHub OAuth token for authentication
    */
   async fetchCoverageSource(
     repositoryId: string,
     ref: string,
+    accessToken: string,
   ): Promise<{ content: string; format: 'lcov' | 'json'; coverageSourcePath: string }> {
-    // MVP: Return sample data based on repo ID
-    if (repositoryId === 'demo-repo-json') {
-      return {
-        content: this.SAMPLE_JSON,
-        format: 'json',
-        coverageSourcePath: 'coverage/coverage-final.json',
-      };
+    const [owner, repo] = repositoryId.split('/');
+
+    if (!owner || !repo) {
+      throw new Error('Invalid repositoryId format. Expected "owner/repo"');
     }
 
-    return {
-      content: this.SAMPLE_LCOV,
-      format: 'lcov',
-      coverageSourcePath: 'coverage/lcov.info',
-    };
+    // Try to fetch all known coverage paths in parallel
+    const results = await Promise.allSettled(
+      this.COVERAGE_PATHS.map(path => 
+        fetchFileContent(owner, repo, path, ref, accessToken)
+      )
+    );
+
+    // Find the first successful result
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      const path = this.COVERAGE_PATHS[i];
+
+      if (result.status === 'fulfilled' && result.value) {
+        console.log(`✅ Coverage file found at: ${path}`);
+        const format = this.detectFormat(path);
+
+        return {
+          content: result.value.content,
+          format,
+          coverageSourcePath: result.value.path,
+        };
+      }
+    }
+
+    throw new NotFoundException(
+      `No coverage file found in repository ${repositoryId}. ` +
+      `Tried paths: ${this.COVERAGE_PATHS.join(', ')}`
+    );
+  }
+
+  /**
+   * Detect coverage format based on file path
+   */
+  private detectFormat(path: string): 'lcov' | 'json' {
+    return path.endsWith('.json') ? 'json' : 'lcov';
   }
 }
 
