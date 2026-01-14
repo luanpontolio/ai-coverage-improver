@@ -7,6 +7,7 @@ import { CoverageSnapshot } from '../../domain/coverage-snapshot';
 
 export interface AnalyzeRepositoryCoverageInput {
   repositoryId: string;
+  accessToken: string;
   thresholdPct?: number;
 }
 
@@ -42,10 +43,12 @@ export class AnalyzeRepositoryCoverageOperation {
     const source = await this.coverageSourceAdapter.fetchCoverageSource(
       repoFullName,
       dbRepo.defaultBranch,
+      input.accessToken,
     );
 
     // Parse coverage content
     const thresholdPct = input.thresholdPct ?? this.DEFAULT_THRESHOLD_PCT;
+    console.log('=============== thresholdPct ===============', thresholdPct);
     const parsed = parseCoverageContent({
       content: source.content,
       format: source.format,
