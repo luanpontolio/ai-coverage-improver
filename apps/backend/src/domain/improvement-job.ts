@@ -1,169 +1,136 @@
 /**
  * Domain entity representing a coverage improvement job
+ * Phase 1: Clone repository
+ * Phase 2: AI Processing (to be implemented)
  */
-export type JobStatus = 'queued' | 'running' | 'succeeded' | 'failed';
+export type JobStatus = 'queued' | 'cloning' | 'cloned' | 'succeeded' | 'failed';
 
 export type FailureCode =
   | 'REPO_NOT_FOUND'
   | 'REPO_CLONE_FAILED'
-  | 'FILE_NOT_FOUND'
-  | 'INVALID_FILE_TYPE'
-  | 'AI_GENERATION_FAILED'
-  | 'TESTS_VALIDATION_FAILED'
-  | 'PR_CREATION_FAILED'
   | 'GITHUB_AUTH_FAILED'
+  | 'INVALID_REPOSITORY'
   | 'UNKNOWN';
 
 export interface ImprovementJobProps {
   id: string;
   repositoryId: string;
-  targetFilePath: string;
   status: JobStatus;
+  clonePath?: string;
   requestedByUserId: string;
   createdAt: Date;
   startedAt?: Date;
+  clonedAt?: Date;
   finishedAt?: Date;
-  pullRequestUrl?: string;
-  pullRequestNumber?: number;
   failureCode?: FailureCode;
   failureMessage?: string;
 }
 
 /**
  * Domain entity for an improvement job
- * Encapsulates business rules for job lifecycle
+ * Simplified to focus on repository cloning first
  */
 export class ImprovementJob {
-  constructor(private props: ImprovementJobProps) {}
+  private job: ImprovementJobProps;
+  constructor(private props: ImprovementJobProps) {
+    this.job = props;
+  }
 
   get id(): string {
-    return this.props.id;
+    return this.job.id;
   }
 
   get repositoryId(): string {
-    return this.props.repositoryId;
-  }
-
-  get targetFilePath(): string {
-    return this.props.targetFilePath;
+    return this.job.repositoryId;
   }
 
   get status(): JobStatus {
-    return this.props.status;
+    return this.job.status;
+  }
+
+  get clonePath(): string | undefined {
+    return this.job.clonePath;
   }
 
   get requestedByUserId(): string {
-    return this.props.requestedByUserId;
+    return this.job.requestedByUserId;
   }
 
   get createdAt(): Date {
-    return this.props.createdAt;
+    return this.job.createdAt;
   }
 
   get startedAt(): Date | undefined {
-    return this.props.startedAt;
+    return this.job.startedAt;
+  }
+
+  get clonedAt(): Date | undefined {
+    return this.job.clonedAt;
   }
 
   get finishedAt(): Date | undefined {
-    return this.props.finishedAt;
-  }
-
-  get pullRequestUrl(): string | undefined {
-    return this.props.pullRequestUrl;
-  }
-
-  get pullRequestNumber(): number | undefined {
-    return this.props.pullRequestNumber;
+    return this.job.finishedAt;
   }
 
   get failureCode(): FailureCode | undefined {
-    return this.props.failureCode;
+    return this.job.failureCode;
   }
 
   get failureMessage(): string | undefined {
-    return this.props.failureMessage;
+    return this.job.failureMessage;
   }
 
   /**
-   * Check if job is in an open state (queued or running)
+   * Check if job is in an open state (not completed)
    */
   isOpen(): boolean {
-    return this.props.status === 'queued' || this.props.status === 'running';
+    return ['queued', 'cloning', 'cloned'].includes(this.job.status);
   }
 
   /**
    * Check if job is completed (succeeded or failed)
    */
   isCompleted(): boolean {
-    return this.props.status === 'succeeded' || this.props.status === 'failed';
+    return this.job.status === 'succeeded' || this.job.status === 'failed';
   }
 
   /**
-   * Mark job as running
+   * Mark job as cloning
    */
-  markAsRunning(): void {
-    if (this.props.status !== 'queued') {
-      throw new Error('Can only start a queued job');
+  markAsCloning(): void {
+    if (this.job.status !== 'queued') {
+      throw new Error('Can only start cloning a queued job');
     }
-    this.props.status = 'running';
-    this.props.startedAt = new Date();
+    this.job.status = 'cloning';
+    this.job.startedAt = new Date();
   }
 
   /**
-   * Mark job as succeeded
+   * Mark job as cloned
    */
-  markAsSucceeded(pullRequestUrl: string, pullRequestNumber: number): void {
-    if (this.props.status !== 'running') {
-      throw new Error('Can only succeed a running job');
+  markAsCloned(clonePath: string): void {
+    if (this.job.status !== 'cloning') {
+      throw new Error('Can only mark as cloned a cloning job');
     }
-    this.props.status = 'succeeded';
-    this.props.finishedAt = new Date();
-    this.props.pullRequestUrl = pullRequestUrl;
-    this.props.pullRequestNumber = pullRequestNumber;
+    this.job.status = 'cloned';
+    this.job.clonedAt = new Date();
+    this.job.clonePath = clonePath;
   }
 
   /**
    * Mark job as failed
    */
   markAsFailed(failureCode: FailureCode, failureMessage: string): void {
-    if (this.props.status !== 'running') {
-      throw new Error('Can only fail a running job');
-    }
-    this.props.status = 'failed';
-    this.props.finishedAt = new Date();
-    this.props.failureCode = failureCode;
-    this.props.failureMessage = failureMessage;
-  }
-
-  /**
-   * Validate target file path
-   */
-  static validateTargetFilePath(filePath: string): void {
-    if (!filePath || typeof filePath !== 'string' || filePath.trim() === '') {
-      throw new Error('filePath is required and must be a non-empty string');
-    }
-
-    if (!filePath.endsWith('.ts')) {
-      throw new Error('filePath must be a TypeScript file (.ts extension)');
-    }
-
-    if (filePath.endsWith('.test.ts')) {
-      throw new Error('filePath cannot be a test file');
-    }
-  }
-
-  /**
-   * Normalize file path (remove leading slash if present)
-   */
-  static normalizeFilePath(filePath: string): string {
-    return filePath.startsWith('/') ? filePath.substring(1) : filePath;
+    this.job.status = 'failed';
+    this.job.finishedAt = new Date();
+    this.job.failureCode = failureCode;
+    this.job.failureMessage = failureMessage;
   }
 
   /**
    * Convert to plain object for serialization
    */
   toJSON(): ImprovementJobProps {
-    return { ...this.props };
+    return { ...this.job };
   }
 }
-

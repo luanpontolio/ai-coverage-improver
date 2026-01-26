@@ -1,11 +1,12 @@
 type Job = {
   id: string;
   repositoryId: string;
-  targetFilePath: string;
-  status: 'queued' | 'running' | 'succeeded' | 'failed';
+  status: 'queued' | 'cloning' | 'cloned' | 'succeeded' | 'failed';
   requestedByUserId: string;
   createdAt: string;
   startedAt?: string;
+  clonedAt?: string;
+  clonePath?: string;
   finishedAt?: string;
   pullRequestUrl?: string;
   pullRequestNumber?: number;
@@ -20,21 +21,24 @@ type Props = {
 
 const STATUS_COLORS: Record<Job['status'], string> = {
   queued: '#888',
-  running: '#0066cc',
+  cloning: '#0066cc',
+  cloned: '#17a2b8',
   succeeded: '#28a745',
   failed: '#dc3545',
 };
 
 const STATUS_ICONS: Record<Job['status'], string> = {
   queued: '⏳',
-  running: '🔄',
+  cloning: '🔄',
+  cloned: '✅',
   succeeded: '✅',
   failed: '❌',
 };
 
 const STATUS_LABELS: Record<Job['status'], string> = {
   queued: 'Queued',
-  running: 'Running',
+  cloning: 'Cloning Repository',
+  cloned: 'Repository Cloned',
   succeeded: 'Succeeded',
   failed: 'Failed',
 };
@@ -94,7 +98,7 @@ export function JobStatus({ job, onRefresh }: Props) {
         <h3 style={{ margin: 0, fontSize: '1.2em' }}>
           {statusIcon} Improvement Job
         </h3>
-        {onRefresh && (job.status === 'queued' || job.status === 'running') && (
+        {onRefresh && (job.status === 'queued' || job.status === 'cloning' || job.status === 'cloned') && (
           <button
             onClick={onRefresh}
             style={{
@@ -131,14 +135,16 @@ export function JobStatus({ job, onRefresh }: Props) {
       {/* Job Details */}
       <div style={{ marginBottom: '1rem' }}>
         <div style={{ marginBottom: '0.5rem' }}>
-          <strong>File:</strong>{' '}
-          <code style={{ backgroundColor: '#eee', padding: '0.2rem 0.4rem', borderRadius: '3px' }}>
-            {job.targetFilePath}
-          </code>
-        </div>
-        <div style={{ marginBottom: '0.5rem' }}>
           <strong>Repository:</strong> {job.repositoryId}
         </div>
+        {job.clonePath && (
+          <div style={{ marginBottom: '0.5rem' }}>
+            <strong>Clone Path:</strong>{' '}
+            <code style={{ backgroundColor: '#eee', padding: '0.2rem 0.4rem', borderRadius: '3px', fontSize: '0.85em' }}>
+              {job.clonePath}
+            </code>
+          </div>
+        )}
         <div style={{ marginBottom: '0.5rem' }}>
           <strong>Job ID:</strong>{' '}
           <code style={{ fontSize: '0.85em', color: '#666' }}>{job.id}</code>
@@ -153,6 +159,11 @@ export function JobStatus({ job, onRefresh }: Props) {
         {job.startedAt && (
           <div style={{ marginBottom: '0.3rem' }}>
             <strong>Started:</strong> {formatDate(job.startedAt)}
+          </div>
+        )}
+        {job.clonedAt && (
+          <div style={{ marginBottom: '0.3rem' }}>
+            <strong>Cloned:</strong> {formatDate(job.clonedAt)}
           </div>
         )}
         {job.finishedAt && (
@@ -206,8 +217,8 @@ export function JobStatus({ job, onRefresh }: Props) {
         </div>
       )}
 
-      {/* Running: Progress */}
-      {job.status === 'running' && (
+      {/* Cloning: Progress */}
+      {job.status === 'cloning' && (
         <div
           style={{
             marginTop: '1rem',
@@ -218,11 +229,30 @@ export function JobStatus({ job, onRefresh }: Props) {
           }}
         >
           <div style={{ fontWeight: 'bold', color: '#004085', marginBottom: '0.5rem' }}>
-            🔄 Processing...
+            🔄 Cloning Repository...
           </div>
           <div style={{ fontSize: '0.9em' }}>
-            Analyzing file, generating tests, and creating pull request.
-            This may take a few minutes.
+            Downloading repository files to prepare for test generation.
+          </div>
+        </div>
+      )}
+
+      {/* Cloned: Ready */}
+      {job.status === 'cloned' && (
+        <div
+          style={{
+            marginTop: '1rem',
+            padding: '1rem',
+            backgroundColor: '#d1ecf1',
+            border: '1px solid #bee5eb',
+            borderRadius: '6px',
+          }}
+        >
+          <div style={{ fontWeight: 'bold', color: '#0c5460', marginBottom: '0.5rem' }}>
+            ✅ Repository Cloned
+          </div>
+          <div style={{ fontSize: '0.9em' }}>
+            Repository successfully cloned. Ready for AI processing (not implemented yet).
           </div>
         </div>
       )}

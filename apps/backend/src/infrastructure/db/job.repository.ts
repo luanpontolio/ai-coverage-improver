@@ -2,9 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { ImprovementJobProps, JobStatus } from '../../domain/improvement-job';
 import { PrismaService } from './prisma.service';
 
-export interface CreateJobRecordInput {
+export interface CreateJobInput {
   repositoryId: string;
-  targetFilePath: string;
   requestedByUserId: string;
 }
 
@@ -26,29 +25,26 @@ export class JobRepository {
     return {
       id: job.id,
       repositoryId: job.repositoryId,
-      targetFilePath: job.targetFilePath,
       status: job.status as JobStatus,
+      clonePath: job.clonePath || undefined,
       requestedByUserId: job.requestedByUserId || '',
       createdAt: job.createdAt,
       startedAt: job.startedAt || undefined,
+      clonedAt: job.clonedAt || undefined,
       finishedAt: job.finishedAt || undefined,
-      pullRequestUrl: job.pullRequestUrl || undefined,
-      pullRequestNumber: job.pullRequestNumber || undefined,
       failureCode: job.failureCode || undefined,
       failureMessage: job.failureMessage || undefined,
     };
   }
 
-  async findOpenByRepoAndFile(
+  async findOpenJobByRepo(
     repositoryId: string,
-    filePath: string,
   ): Promise<ImprovementJobProps | undefined> {
     const job = await this.prisma.improvementJob.findFirst({
       where: {
         repositoryId,
-        targetFilePath: filePath,
         status: {
-          in: ['queued', 'running'],
+          in: ['queued', 'cloning', 'cloned'],
         },
       },
       orderBy: {
@@ -61,24 +57,22 @@ export class JobRepository {
     return {
       id: job.id,
       repositoryId: job.repositoryId,
-      targetFilePath: job.targetFilePath,
       status: job.status as JobStatus,
+      clonePath: job.clonePath || undefined,
       requestedByUserId: job.requestedByUserId || '',
       createdAt: job.createdAt,
       startedAt: job.startedAt || undefined,
+      clonedAt: job.clonedAt || undefined,
       finishedAt: job.finishedAt || undefined,
-      pullRequestUrl: job.pullRequestUrl || undefined,
-      pullRequestNumber: job.pullRequestNumber || undefined,
       failureCode: job.failureCode || undefined,
       failureMessage: job.failureMessage || undefined,
     };
   }
 
-  async createJob(input: CreateJobRecordInput): Promise<ImprovementJobProps> {
+  async createJob(input: CreateJobInput): Promise<ImprovementJobProps> {
     const job = await this.prisma.improvementJob.create({
       data: {
         repositoryId: input.repositoryId,
-        targetFilePath: input.targetFilePath,
         status: 'queued',
         requestedByUserId: input.requestedByUserId,
       },
@@ -87,14 +81,13 @@ export class JobRepository {
     return {
       id: job.id,
       repositoryId: job.repositoryId,
-      targetFilePath: job.targetFilePath,
       status: job.status as JobStatus,
+      clonePath: job.clonePath || undefined,
       requestedByUserId: job.requestedByUserId || '',
       createdAt: job.createdAt,
       startedAt: job.startedAt || undefined,
+      clonedAt: job.clonedAt || undefined,
       finishedAt: job.finishedAt || undefined,
-      pullRequestUrl: job.pullRequestUrl || undefined,
-      pullRequestNumber: job.pullRequestNumber || undefined,
       failureCode: job.failureCode || undefined,
       failureMessage: job.failureMessage || undefined,
     };
@@ -109,12 +102,10 @@ export class JobRepository {
       where: { id },
       data: {
         status,
+        ...(payload?.clonePath && { clonePath: payload.clonePath }),
         ...(payload?.startedAt && { startedAt: payload.startedAt }),
+        ...(payload?.clonedAt && { clonedAt: payload.clonedAt }),
         ...(payload?.finishedAt && { finishedAt: payload.finishedAt }),
-        ...(payload?.pullRequestUrl && { pullRequestUrl: payload.pullRequestUrl }),
-        ...(payload?.pullRequestNumber !== undefined && {
-          pullRequestNumber: payload.pullRequestNumber,
-        }),
         ...(payload?.failureCode && { failureCode: payload.failureCode }),
         ...(payload?.failureMessage && { failureMessage: payload.failureMessage }),
       },
@@ -123,17 +114,15 @@ export class JobRepository {
     return {
       id: job.id,
       repositoryId: job.repositoryId,
-      targetFilePath: job.targetFilePath,
       status: job.status as JobStatus,
+      clonePath: job.clonePath || undefined,
       requestedByUserId: job.requestedByUserId || '',
       createdAt: job.createdAt,
       startedAt: job.startedAt || undefined,
+      clonedAt: job.clonedAt || undefined,
       finishedAt: job.finishedAt || undefined,
-      pullRequestUrl: job.pullRequestUrl || undefined,
-      pullRequestNumber: job.pullRequestNumber || undefined,
       failureCode: job.failureCode || undefined,
       failureMessage: job.failureMessage || undefined,
     };
   }
 }
-

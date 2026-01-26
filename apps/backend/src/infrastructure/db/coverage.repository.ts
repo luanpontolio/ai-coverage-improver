@@ -142,5 +142,23 @@ export class CoverageRepository {
       })),
     };
   }
+
+  /**
+   * Get files below threshold from latest snapshot
+   */
+  async getFilesBelowThreshold(
+    repositoryId: string,
+    thresholdPct?: number,
+  ): Promise<CoverageFileMetric[]> {
+    const snapshot = await this.latestForRepo(repositoryId);
+    
+    if (!snapshot) {
+      return [];
+    }
+
+    const threshold = thresholdPct ?? snapshot.thresholdPct;
+    
+    return snapshot.files.filter((file) => file.coveragePct < threshold);
+  }
 }
 

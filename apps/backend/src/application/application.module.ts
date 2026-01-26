@@ -3,6 +3,7 @@ import { InfrastructureModule } from '../infrastructure/infrastructure.module';
 import { ListInstallationRepositoriesOperation } from './operations/list-installation-repositories.operation';
 import { AnalyzeRepositoryCoverageOperation } from './operations/analyze-repository-coverage.operation';
 import { RequestCoverageImprovementOperation } from './operations/request-coverage-improvement.operation';
+import { GetJobStatusOperation } from './operations/get-job-status.operation';
 import { RunCoverageImprovementOperation } from './operations/run-coverage-improvement.operation';
 import { StartGithubAuthOperation } from './operations/start-github-auth.operation';
 import { CompleteGithubAuthOperation } from './operations/complete-github-auth.operation';
@@ -18,6 +19,7 @@ import { CompleteGithubAuthOperation } from './operations/complete-github-auth.o
     ListInstallationRepositoriesOperation,
     AnalyzeRepositoryCoverageOperation,
     RequestCoverageImprovementOperation,
+    GetJobStatusOperation,
     RunCoverageImprovementOperation,
     StartGithubAuthOperation,
     CompleteGithubAuthOperation,
@@ -26,6 +28,7 @@ import { CompleteGithubAuthOperation } from './operations/complete-github-auth.o
     ListInstallationRepositoriesOperation,
     AnalyzeRepositoryCoverageOperation,
     RequestCoverageImprovementOperation,
+    GetJobStatusOperation,
     RunCoverageImprovementOperation,
     StartGithubAuthOperation,
     CompleteGithubAuthOperation,

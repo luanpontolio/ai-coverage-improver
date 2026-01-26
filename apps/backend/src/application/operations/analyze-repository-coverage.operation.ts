@@ -32,13 +32,11 @@ export class AnalyzeRepositoryCoverageOperation {
   ) {}
 
   async execute(input: AnalyzeRepositoryCoverageInput): Promise<AnalyzeRepositoryCoverageOutput> {
-    // Find repository in database (contains the correct database ID)
     const dbRepo = await this.repositoryRepository.findById(input.repositoryId);
     if (!dbRepo) {
       throw new NotFoundException('Repository not found in database');
     }
 
-    // Fetch coverage source file from GitHub
     const repoFullName = `${dbRepo.owner}/${dbRepo.name}`;
     const source = await this.coverageSourceAdapter.fetchCoverageSource(
       repoFullName,
@@ -46,7 +44,6 @@ export class AnalyzeRepositoryCoverageOperation {
       input.accessToken,
     );
 
-    // Parse coverage content
     const thresholdPct = input.thresholdPct ?? this.DEFAULT_THRESHOLD_PCT;
     console.log('=============== thresholdPct ===============', thresholdPct);
     const parsed = parseCoverageContent({
@@ -55,16 +52,14 @@ export class AnalyzeRepositoryCoverageOperation {
       thresholdPct,
     });
 
-    // Create domain entity with database ID
     const snapshot = new CoverageSnapshot(
-      dbRepo.id, // Use database CUID
+      dbRepo.id,
       dbRepo.defaultBranch,
       source.coverageSourcePath,
       parsed.thresholdPct,
       parsed.files,
     );
 
-    // Persist snapshot
     await this.coverageRepository.saveSnapshot({
       repositoryId: snapshot.repositoryId,
       ref: snapshot.ref,

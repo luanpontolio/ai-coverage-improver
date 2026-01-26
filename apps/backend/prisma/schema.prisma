@@ -63,19 +63,18 @@ model ImprovementJob {
   id                String   @id @default(cuid())
   repository        Repository @relation(fields: [repositoryId], references: [id])
   repositoryId      String
-  targetFilePath    String
-  status            String   // queued | running | succeeded | failed
+  status            String   // queued | cloning | cloned | succeeded | failed
+  clonePath         String?  // Path where the repo was cloned
   requestedByUserId String?
   createdAt         DateTime @default(now())
   startedAt         DateTime?
+  clonedAt          DateTime?  // When clone was completed
   finishedAt        DateTime?
   failureCode       String?
   failureMessage    String?
-  pullRequestUrl    String?
-  pullRequestNumber Int?
   executions        AIExecution[]
   
-  @@index([repositoryId, targetFilePath, status])
+  @@index([repositoryId, status])
   @@index([status])
 }
 

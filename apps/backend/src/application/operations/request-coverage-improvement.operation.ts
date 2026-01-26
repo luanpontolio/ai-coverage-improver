@@ -6,7 +6,6 @@ import { ImprovementJob } from '../../domain/improvement-job';
 
 export interface RequestCoverageImprovementInput {
   repositoryId: string;
-  filePath: string;
   requestedByUserId: string;
 }
 
@@ -18,8 +17,8 @@ export interface RequestCoverageImprovementOutput {
 /**
  * Operation: Request Coverage Improvement
  *
- * Creates a new improvement job for a file and enqueues it for processing.
- * Reuses existing open jobs to avoid duplicates.
+ * Creates a job to clone repository and prepare for AI processing.
+ * Only receives repositoryId - everything else is determined from the repository data.
  */
 @Injectable()
 export class RequestCoverageImprovementOperation {
@@ -30,47 +29,40 @@ export class RequestCoverageImprovementOperation {
   ) {}
 
   async execute(input: RequestCoverageImprovementInput): Promise<RequestCoverageImprovementOutput> {
-    // Validate input using domain rules
-    if (!input.filePath || !input.requestedByUserId) {
-      throw new BadRequestException('File path is required');
+    if (!input.requestedByUserId) {
+      throw new BadRequestException('User ID is required');
     }
 
-    ImprovementJob.validateTargetFilePath(input.filePath);
-
-    // Verify repository exists in database
+    // Validate repository exists in database
     const repo = await this.repositoryRepository.findById(input.repositoryId);
     if (!repo) {
-      throw new NotFoundException('Repository not found');
+      throw new NotFoundException(`Repository not found: ${input.repositoryId}`);
     }
 
-    // Normalize file path using domain rules
-    const normalizedFilePath = ImprovementJob.normalizeFilePath(input.filePath);
+    console.log(`📋 Requesting improvement for ${repo.owner}/${repo.name}`);
 
     // Check for existing open job
-    const existingJobData = await this.jobRepository.findOpenByRepoAndFile(
-      input.repositoryId,
-      normalizedFilePath,
-    );
+    const existingJobData = await this.jobRepository.findOpenJobByRepo(input.repositoryId);
 
     if (existingJobData) {
-      // Reuse existing job
       const job = new ImprovementJob(existingJobData);
+      console.log(`♻️ Reusing existing job ${job.id} (status: ${job.status})`);
       return { job, reused: true };
     }
 
     // Create new job
     const createdJobData = await this.jobRepository.createJob({
       repositoryId: repo.id,
-      targetFilePath: normalizedFilePath,
       requestedByUserId: input.requestedByUserId,
     });
 
     const job = new ImprovementJob(createdJobData);
 
     // Enqueue for async processing
-    await this.queue.enqueue(job.id, repo.id, normalizedFilePath);
+    await this.queue.enqueue(job.id, repo.id);
+
+    console.log(`✨ Created job ${job.id} for ${repo.owner}/${repo.name}`);
 
     return { job, reused: false };
   }
 }
-

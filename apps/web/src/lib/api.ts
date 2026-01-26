@@ -129,3 +129,54 @@ export async function getRepositoryCoverage(
   return apiRequest<CoverageResponse>(`/repos/${repoId}/coverage`);
 }
 
+// Improvement Job types
+export interface ImprovementJob {
+  id: string;
+  repositoryId: string;
+  status: 'queued' | 'cloning' | 'cloned' | 'succeeded' | 'failed';
+  requestedByUserId: string;
+  createdAt: string;
+  startedAt?: string;
+  clonedAt?: string;
+  clonePath?: string;
+  finishedAt?: string;
+  pullRequestUrl?: string;
+  pullRequestNumber?: number;
+  failureCode?: string;
+  failureMessage?: string;
+}
+
+export interface RequestImprovementResponse {
+  job: ImprovementJob;
+  reused: boolean;
+}
+
+/**
+ * Request a coverage improvement job for a repository
+ * Automatically processes all files below threshold
+ */
+export async function requestImprovement(
+  repoId: string
+): Promise<RequestImprovementResponse> {
+  return apiRequest<RequestImprovementResponse>(
+    `/repos/${repoId}/improvements`,
+    {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }
+  );
+}
+
+/**
+ * Get improvement job status
+ */
+export async function getJobStatus(
+  repoId: string,
+  jobId: string
+): Promise<ImprovementJob> {
+  const response = await apiRequest<{ job: ImprovementJob }>(
+    `/repos/${repoId}/improvements/${jobId}`
+  );
+  return response.job;
+}
+

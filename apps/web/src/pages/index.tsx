@@ -6,35 +6,30 @@ import { JobStatus } from '../components/JobStatus';
 import {
   listRepositories,
   getRepositoryCoverage,
+  requestImprovement,
+  getJobStatus,
   type Repository,
   type CoverageResponse,
+  type ImprovementJob,
 } from '../lib/api';
-
-type DemoJob = {
-  id: string;
-  repositoryId: string;
-  targetFilePath: string;
-  status: 'queued' | 'running' | 'succeeded' | 'failed';
-  requestedByUserId: string;
-  createdAt: string;
-  pullRequestUrl?: string;
-};
 
 export default function Home() {
   const router = useRouter();
   const { user, isLoading: isAuthLoading } = useAuth();
-  
+
   const [repos, setRepos] = useState<Repository[]>([]);
   const [isLoadingRepos, setIsLoadingRepos] = useState(false);
   const [reposError, setReposError] = useState<string | null>(null);
-  
+
   const [selectedRepoId, setSelectedRepoId] = useState<string>('');
   const [coverage, setCoverage] = useState<CoverageResponse | null>(null);
   const [isLoadingCoverage, setIsLoadingCoverage] = useState(false);
   const [coverageError, setCoverageError] = useState<string | null>(null);
-  
-  const [job, setJob] = useState<DemoJob | undefined>(undefined);
-  
+
+  const [job, setJob] = useState<ImprovementJob | undefined>(undefined);
+  const [isRequestingJob, setIsRequestingJob] = useState(false);
+  const [jobError, setJobError] = useState<string | null>(null);
+
   const selectedRepo = useMemo(
     () => repos.find((repo) => repo.id === selectedRepoId),
     [repos, selectedRepoId]
@@ -78,6 +73,8 @@ export default function Home() {
       setIsLoadingCoverage(true);
       setCoverageError(null);
       setCoverage(null);
+      setJob(undefined); // Clear job when changing repos
+      setJobError(null);
       try {
         const coverageData = await getRepositoryCoverage(selectedRepoId);
         setCoverage(coverageData);
@@ -90,6 +87,77 @@ export default function Home() {
 
     fetchCoverage();
   }, [selectedRepoId]);
+
+  // Polling para atualizar status do job
+  useEffect(() => {
+    if (!job || !selectedRepoId) return;
+    
+    // Não fazer polling se o job já terminou
+    if (job.status === 'succeeded' || job.status === 'failed') {
+      return;
+    }
+
+    // Fazer polling a cada 2 segundos
+    const intervalId = setInterval(async () => {
+      try {
+        const updatedJob = await getJobStatus(selectedRepoId, job.id);
+        setJob(updatedJob);
+        
+        // Parar polling se o job terminou
+        if (updatedJob.status === 'succeeded' || updatedJob.status === 'failed') {
+          clearInterval(intervalId);
+        }
+      } catch (error) {
+        console.error('Failed to fetch job status:', error);
+        // Não atualizar o estado de erro para não incomodar o usuário
+      }
+    }, 2000); // Poll a cada 2 segundos
+
+    return () => clearInterval(intervalId);
+  }, [job, selectedRepoId]);
+
+  // Função para refresh manual
+  const handleRefreshJobStatus = async () => {
+    if (!job || !selectedRepoId) return;
+    
+    try {
+      const updatedJob = await getJobStatus(selectedRepoId, job.id);
+      setJob(updatedJob);
+    } catch (error) {
+      console.error('Failed to refresh job status:', error);
+    }
+  };
+
+  // Handle request improvement
+  const handleRequestImprovement = async () => {
+    if (!user || !selectedRepoId || !coverage) return;
+
+    // Check if there are files below threshold
+    if (!coverage.files.some(f => f.isBelowThreshold)) {
+      setJobError('No files below threshold found');
+      return;
+    }
+
+    setIsRequestingJob(true);
+    setJobError(null);
+
+    try {
+      const response = await requestImprovement(selectedRepoId);
+      
+      setJob(response.job);
+      
+      if (response.reused) {
+        console.log('Reusing existing job:', response.job.id);
+      } else {
+        console.log('Created new job:', response.job.id);
+      }
+    } catch (error: any) {
+      setJobError(error.message || 'Failed to request improvement');
+      console.error('Failed to request improvement:', error);
+    } finally {
+      setIsRequestingJob(false);
+    }
+  };
 
   // Show loading while checking auth
   if (isAuthLoading) {
@@ -208,24 +276,42 @@ export default function Home() {
               />
               <div style={{ marginTop: '1rem' }}>
                 <button
-                  onClick={() =>
-                    setJob({
-                      id: `job-${Date.now()}`,
-                      repositoryId: selectedRepoId,
-                      targetFilePath:
-                        coverage.files.find((f) => f.isBelowThreshold)
-                          ?.filePath ?? 'src/utils.ts',
-                      status: 'succeeded',
-                      requestedByUserId: user.id,
-                      createdAt: new Date().toISOString(),
-                      pullRequestUrl: 'https://github.com/demo/demo-repo/pull/1',
-                    })
-                  }
+                  onClick={handleRequestImprovement}
+                  disabled={isRequestingJob || !coverage.files.some(f => f.isBelowThreshold)}
+                  style={{
+                    padding: '0.6rem 1.2rem',
+                    fontSize: '1rem',
+                    backgroundColor: isRequestingJob ? '#ccc' : '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: isRequestingJob ? 'not-allowed' : 'pointer',
+                    fontWeight: 'bold',
+                  }}
                 >
-                  Request improvement (demo)
+                  {isRequestingJob ? 'Requesting...' : 'Request Improvement'}
                 </button>
+                {!coverage.files.some(f => f.isBelowThreshold) && (
+                  <p style={{ color: '#666', fontSize: '0.9em', marginTop: '0.5rem' }}>
+                    All files meet the coverage threshold!
+                  </p>
+                )}
+                {jobError && (
+                  <div
+                    style={{
+                      marginTop: '0.5rem',
+                      padding: '0.5rem',
+                      backgroundColor: '#fee',
+                      border: '1px solid #fcc',
+                      borderRadius: '4px',
+                      color: '#c33',
+                    }}
+                  >
+                    Error: {jobError}
+                  </div>
+                )}
               </div>
-              <JobStatus job={job} />
+              <JobStatus job={job} onRefresh={handleRefreshJobStatus} />
             </>
           ) : (
             <p style={{ marginTop: '1rem', color: '#666' }}>
