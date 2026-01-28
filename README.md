@@ -37,7 +37,7 @@ The project follows Domain-Driven Design (DDD) with an Operations Pattern, ensur
 - 🎯 **Smart Filtering** - Automatically identify files below threshold
 - 🤖 **AI Test Generation** - Request automated test creation (Phase 1: Clone ready)
 - 📈 **Real-time Updates** - Live job status with automatic polling
-- 🔄 **Job Management** - Track improvement jobs through their lifecycle
+- 🔄 **Job Queue with BullMQ** - Redis-backed job queue with retry, concurrency control, and rate limiting
 - 💾 **Persistent Storage** - SQLite database with Prisma ORM
 
 ## 🏗️ Architecture
@@ -115,6 +115,34 @@ erDiagram
         string metadata "nullable"
     }
 ```
+
+### Job Queue Architecture
+
+The application uses **BullMQ** with **Redis** for production-ready job processing:
+
+```mermaid
+graph LR
+    A[RequestCoverageImprovementOperation] -->|enqueue| B[ImprovementProducer]
+    B -->|add job| C[Redis Queue]
+    C -->|consume| D[ImprovementConsumer]
+    D -->|execute| E[RunCoverageImprovementOperation]
+    E -->|Phase 1| F[Clone Repository]
+    E -->|Phase 2| G[Analyze Coverage]
+    E -->|Phase 3| H[Generate Tests with AI]
+```
+
+**Key Features:**
+- **Persistence**: Jobs stored in Redis survive server restarts
+- **Retry Logic**: 3 attempts with exponential backoff (5s, 10s, 20s)
+- **Concurrency**: Process up to 2 jobs simultaneously
+- **Rate Limiting**: Maximum 10 jobs per minute
+- **Job Retention**: Completed jobs kept for 24h, failed jobs for 7 days
+- **Horizontal Scaling**: Multiple workers can process the same queue
+
+**Components:**
+- **ImprovementProducer**: Enqueues jobs to BullMQ
+- **ImprovementConsumer**: Processes jobs with automatic retry
+- **RunCoverageImprovementOperation**: Executes the 3-phase workflow
 
 ### Sequence Diagrams
 
@@ -205,8 +233,9 @@ sequenceDiagram
     participant Frontend
     participant Backend
     participant Database
-    participant Queue
-    participant Worker
+    participant BullMQ
+    participant Redis
+    participant Consumer
 
     User->>Frontend: Click "Request Improvement"
     Frontend->>Backend: POST /repos/:id/improvements
@@ -218,8 +247,10 @@ sequenceDiagram
     else No open job
         Backend->>Database: Create new job (status: queued)
         Database-->>Backend: Created job
-        Backend->>Queue: Enqueue job
-        Queue->>Worker: Process asynchronously
+        Backend->>BullMQ: Producer.enqueue(jobId)
+        BullMQ->>Redis: Persist job
+        Redis-->>BullMQ: Job stored
+        BullMQ->>Consumer: Process asynchronously
         Backend-->>Frontend: {job, reused: false}
     end
     
@@ -227,30 +258,44 @@ sequenceDiagram
     Frontend->>Frontend: Start polling
 ```
 
-#### 5. Process Improvement Job (Worker)
+#### 5. Process Improvement Job (BullMQ Consumer)
 
 ```mermaid
 sequenceDiagram
-    participant Queue
-    participant Worker
+    participant BullMQ
+    participant Consumer
     participant Database
     participant FileSystem
     participant Git
+    participant LLM
 
-    Queue->>Worker: Process job
-    Worker->>Database: Get job details
-    Database-->>Worker: Job + Repository
+    BullMQ->>Consumer: Process job
+    Consumer->>Database: Get job details
+    Database-->>Consumer: Job + Repository
     
-    Worker->>Database: Update status to 'cloning'
-    Worker->>FileSystem: Create tmp directory
-    Worker->>Git: git clone --depth 1
-    Git-->>Worker: Repository cloned
-    Worker->>FileSystem: Verify .git directory
+    Note over Consumer: Phase 1: Clone
+    Consumer->>Database: Update status to 'cloning'
+    Consumer->>FileSystem: Create tmp directory
+    Consumer->>Git: git clone --depth 1
+    Git-->>Consumer: Repository cloned
+    Consumer->>Database: Update status to 'cloned'
     
-    Worker->>Database: Update status to 'cloned'
-    Database-->>Worker: Updated
+    Note over Consumer: Phase 2: Analysis
+    Consumer->>Database: Update status to 'analyzing'
+    Consumer->>Database: Get files below 80% threshold
+    Database-->>Consumer: List of files
+    Consumer->>Database: Create AIExecution records
+    Consumer->>Database: Update status to 'analyzed'
     
-    Note over Worker: Phase 2: AI Processing (TODO)
+    Note over Consumer: Phase 3: Batch Processing
+    Consumer->>Database: Update status to 'processing'
+    loop For each file
+        Consumer->>LLM: Generate tests
+        LLM-->>Consumer: Test code
+        Consumer->>FileSystem: Write test file
+        Consumer->>Database: Update progress
+    end
+    Consumer->>Database: Update status to 'succeeded'
 ```
 
 #### 6. Job Status Polling
@@ -284,6 +329,7 @@ sequenceDiagram
 
 - **Node.js** 20+ ([Download](https://nodejs.org/))
 - **pnpm** (`npm install -g pnpm`)
+- **Redis** 6+ (for job queue) - See [installation options](#redis-setup)
 - **GitHub App** (for OAuth integration)
 
 ### Installation
@@ -317,6 +363,9 @@ Then edit `.env` with your actual values. See [`.env.example`](./.env.example) f
 - `SESSION_SECRET` - Random secret (generate with: `openssl rand -hex 32`)
 - `LLM_API_KEY` - API key for your LLM provider
 - `DATABASE_URL` - Database connection string
+- `REDIS_HOST` - Redis host (default: `localhost`, use `redis` for Docker)
+- `REDIS_PORT` - Redis port (default: `6379`)
+- `REDIS_PASSWORD` - Redis password (optional, leave empty for development)
 
 **Note:** All configuration is now managed through a centralized `ConfigService`. See [`docs/CONFIG_MIGRATION.md`](./docs/CONFIG_MIGRATION.md) for details.
 
@@ -330,6 +379,42 @@ pnpm db:migrate
 
 ```bash
 pnpm db:generate
+```
+
+### Redis Setup
+
+The application requires Redis for the job queue (BullMQ). Choose one option:
+
+**Option 1: Docker (Recommended)**
+
+```bash
+docker-compose up -d redis
+```
+
+Verify it's running:
+```bash
+docker-compose ps redis
+docker-compose logs redis
+```
+
+**Option 2: Local Installation**
+
+macOS:
+```bash
+brew install redis
+brew services start redis
+```
+
+Ubuntu/Debian:
+```bash
+sudo apt-get install redis-server
+sudo systemctl start redis
+sudo systemctl enable redis
+```
+
+**Test connection:**
+```bash
+redis-cli ping  # Should output: PONG
 ```
 
 ### Running the Application
@@ -383,7 +468,7 @@ See [Docker Deployment Guide](./docs/DOCKER_DEPLOYMENT.md) for detailed instruct
 - Backend (NestJS) with graceful shutdown
 - Frontend (Next.js)
 - SQLite database (with Docker volume)
-- Redis (ready for BullMQ migration)
+- Redis (for BullMQ job queue)
 
 ## 📁 Project Structure
 
@@ -430,6 +515,8 @@ ai-coverage-improver/
 - **[NestJS](https://nestjs.com/)** - Progressive Node.js framework
 - **[Prisma](https://www.prisma.io/)** - Next-generation ORM
 - **[SQLite](https://www.sqlite.org/)** - Embedded database (PostgreSQL ready)
+- **[BullMQ](https://bullmq.io/)** - Redis-based job queue with advanced features
+- **[Redis](https://redis.io/)** - In-memory data store for job queue
 - **[TypeScript](https://www.typescriptlang.org/)** - Type safety
 
 ### Frontend
@@ -484,14 +571,16 @@ Run `make help` to see all available commands.
 - Repository listing and synchronization
 - Coverage analysis and parsing (LCOV format)
 - Coverage visualization with threshold highlighting
-- Job creation and management
+- Job creation and management with BullMQ
+- Redis-backed job queue with retry and rate limiting
 - Repository cloning (Phase 1)
+- Coverage analysis to identify files below 80% (Phase 2)
+- AI-powered test generation in batch (Phase 3)
 - Real-time job status updates with polling
 - Session management
 - Database schema and migrations
 
 ### 🚧 In Progress
-- AI-powered test generation (Phase 2)
 - Pull request creation with generated tests
 - Enhanced error handling and retry logic
 
@@ -500,8 +589,7 @@ Run `make help` to see all available commands.
 - Configurable coverage thresholds
 - Job history and analytics
 - Webhook integration
-- Rate limiting and queue management
-- Docker deployment
+- Bull Board UI for queue monitoring
 
 ## 🤝 Contributing
 
