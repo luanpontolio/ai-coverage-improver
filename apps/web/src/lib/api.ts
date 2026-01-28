@@ -12,7 +12,6 @@ export interface ApiError {
 export interface User {
   id: string;
   login: string;
-  installationId?: string;
 }
 
 export interface StartAuthResponse {
@@ -77,12 +76,20 @@ export async function completeGithubAuth(
  */
 export async function getCurrentUser(): Promise<User | null> {
   try {
-    // TODO: Implement a /auth/me endpoint on backend
-    // For now, return null and rely on session
-    return null;
+    const response = await apiRequest<{ user: User | null }>('/auth/me');
+    return response.user;
   } catch (error) {
     return null;
   }
+}
+
+/**
+ * Logout the current user
+ */
+export async function logout(): Promise<void> {
+  await apiRequest<{ success: boolean }>('/auth/logout', {
+    method: 'POST',
+  });
 }
 
 // Repository types

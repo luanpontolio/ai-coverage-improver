@@ -2,15 +2,38 @@ import { Controller, Get, Post, Query, Res, Req } from '@nestjs/common';
 import type { Response, Request } from 'express';
 import { StartGithubAuthOperation } from '../../../application/operations/start-github-auth.operation';
 import { CompleteGithubAuthOperation } from '../../../application/operations/complete-github-auth.operation';
+import { GetCurrentUserOperation } from '../../../application/operations/get-current-user.operation';
+import { LogoutOperation } from '../../../application/operations/logout.operation';
 
-@Controller('auth/github')
+@Controller('auth')
 export class AuthController {
   constructor(
     private readonly startGithubAuthOperation: StartGithubAuthOperation,
     private readonly completeGithubAuthOperation: CompleteGithubAuthOperation,
+    private readonly getCurrentUserOperation: GetCurrentUserOperation,
+    private readonly logoutOperation: LogoutOperation,
   ) {}
 
-  @Post('start')
+  @Get('me')
+  async me(@Req() req: Request) {
+    console.log('=============== req.session ===============', req.session);
+    const { user } = await this.getCurrentUserOperation.execute({
+      session: req.session,
+    });
+
+    return { user };
+  }
+
+  @Post('logout')
+  async logout(@Req() req: Request) {
+    const { success } = await this.logoutOperation.execute({
+      session: req.session,
+    });
+
+    return { success };
+  }
+
+  @Post('github/start')
   async start(
     @Req() req: Request,
     @Res() res: Response,
@@ -24,7 +47,7 @@ export class AuthController {
     res.json({ redirectUrl });
   }
 
-  @Get('callback')
+  @Get('github/callback')
   async callback(
     @Req() req: Request,
     @Query('code') code: string,

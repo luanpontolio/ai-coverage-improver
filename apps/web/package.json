@@ -8,7 +8,7 @@
     "start": "next start -p 3001",
     "lint": "next lint"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "devDependencies": {
+    "@types/react": "19.2.10"
+  }
 }
-

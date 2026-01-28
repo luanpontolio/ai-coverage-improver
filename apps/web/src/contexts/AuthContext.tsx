@@ -1,10 +1,11 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, getCurrentUser } from '../lib/api';
+import { User, getCurrentUser, logout as apiLogout } from '../lib/api';
 
 interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   setUser: (user: User | null) => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -34,8 +35,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     checkAuth();
   }, []);
 
+  const logout = async () => {
+    try {
+      await apiLogout();
+      setUser(null);
+    } catch (error) {
+      console.error('Logout failed:', error);
+      throw error;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, setUser }}>
+    <AuthContext.Provider value={{ user, isLoading, setUser, logout }}>
       {children}
     </AuthContext.Provider>
   );

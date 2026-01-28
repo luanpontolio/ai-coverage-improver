@@ -7,6 +7,8 @@ import { GetJobStatusOperation } from './operations/get-job-status.operation';
 import { RunCoverageImprovementOperation } from './operations/run-coverage-improvement.operation';
 import { StartGithubAuthOperation } from './operations/start-github-auth.operation';
 import { CompleteGithubAuthOperation } from './operations/complete-github-auth.operation';
+import { GetCurrentUserOperation } from './operations/get-current-user.operation';
+import { LogoutOperation } from './operations/logout.operation';
 import { GenerateTestsWithAIOperation } from './operations/generate-tests-with-ai.operation';
 import { ImprovementConsumer } from '../workers/improvement.consumer';
 
@@ -27,6 +29,8 @@ import { ImprovementConsumer } from '../workers/improvement.consumer';
     RunCoverageImprovementOperation,
     StartGithubAuthOperation,
     CompleteGithubAuthOperation,
+    GetCurrentUserOperation,
+    LogoutOperation,
     GenerateTestsWithAIOperation,
     
     // BullMQ Consumers (Workers)
@@ -40,6 +44,8 @@ import { ImprovementConsumer } from '../workers/improvement.consumer';
     RunCoverageImprovementOperation,
     StartGithubAuthOperation,
     CompleteGithubAuthOperation,
+    GetCurrentUserOperation,
+    LogoutOperation,
     GenerateTestsWithAIOperation,
   ],
 })

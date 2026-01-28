@@ -15,7 +15,7 @@ import {
 
 export default function Home() {
   const router = useRouter();
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user, isLoading: isAuthLoading, logout } = useAuth();
 
   const [repos, setRepos] = useState<Repository[]>([]);
   const [isLoadingRepos, setIsLoadingRepos] = useState(false);
@@ -159,6 +159,15 @@ export default function Home() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push('/auth');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
   // Show loading while checking auth
   if (isAuthLoading) {
     return (
@@ -197,21 +206,25 @@ export default function Home() {
           </p>
         </div>
         <button
-          onClick={() => {
-            // TODO: Implement logout
-            window.location.href = '/auth';
-          }}
+          onClick={handleLogout}
           style={{
             padding: '0.5rem 1rem',
             fontSize: '0.9rem',
-            color: '#666',
-            backgroundColor: '#f5f5f5',
-            border: '1px solid #ddd',
+            backgroundColor: '#dc3545',
+            color: 'white',
+            border: 'none',
             borderRadius: '4px',
             cursor: 'pointer',
+            transition: 'background-color 0.2s',
+          }}
+          onMouseEnter={(e: any) => {
+            e.currentTarget.style.backgroundColor = '#c82333';
+          }}
+          onMouseLeave={(e: any) => {
+            e.currentTarget.style.backgroundColor = '#dc3545';
           }}
         >
-          Sign Out
+          Logout
         </button>
       </div>
 
