@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { AppConfigService } from '../../config/config.service';
 
 export interface GitHubUser {
   id: string;
@@ -26,26 +27,20 @@ export interface ExchangeCodeResult {
  */
 @Injectable()
 export class GitHubAuthAdapter {
-  private get clientId(): string {
-    return process.env.GITHUB_CLIENT_ID ?? '';
-  }
+  private readonly clientId: string;
+  private readonly clientSecret: string;
+  private readonly webAppUrl: string;
 
-  private get clientSecret(): string {
-    return process.env.GITHUB_CLIENT_SECRET ?? '';
-  }
+  constructor(private readonly configService: AppConfigService) {
+    const githubConfig = this.configService.github;
+    const serverConfig = this.configService.server;
 
-  private get webAppUrl(): string {
-    return process.env.WEB_APP_URL ?? 'http://localhost:3001';
-  }
-
-  private requireEnv() {
-    if (!this.clientId || !this.clientSecret) {
-      throw new Error('GitHub OAuth environment is not configured (GITHUB_CLIENT_ID/GITHUB_CLIENT_SECRET)');
-    }
+    this.clientId = githubConfig.clientId;
+    this.clientSecret = githubConfig.clientSecret;
+    this.webAppUrl = serverConfig.webAppUrl;
   }
 
   buildAuthUrl(returnTo?: string): { redirectUrl: string; state: string } {
-    this.requireEnv();
     const state = randomUUID();
     // GitHub will redirect to the web app's callback page
     const callbackUrl = new URL('/callback', this.webAppUrl).toString();
@@ -68,7 +63,6 @@ export class GitHubAuthAdapter {
   }
 
   async exchangeCode(code: string): Promise<ExchangeCodeResult> {
-    this.requireEnv();
     const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
       headers: {

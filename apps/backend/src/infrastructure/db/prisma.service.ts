@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import * as path from 'path';
+import { AppConfigService } from '../../config/config.service';
 
 /**
  * Prisma Service - Database connection management
@@ -9,12 +9,12 @@ import * as path from 'path';
  */
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
-  constructor() {
-    const defaultDb = `file:${path.join(process.cwd(), 'apps/backend/prisma/data/dev.db')}`;
+  constructor(configService: AppConfigService) {
+    const databaseUrl = configService.database.url;
     super({
       datasources: {
         db: {
-          url: process.env.DATABASE_URL || defaultDb,
+          url: databaseUrl,
         },
       },
     });

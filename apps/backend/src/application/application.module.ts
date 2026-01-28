@@ -7,6 +7,7 @@ import { GetJobStatusOperation } from './operations/get-job-status.operation';
 import { RunCoverageImprovementOperation } from './operations/run-coverage-improvement.operation';
 import { StartGithubAuthOperation } from './operations/start-github-auth.operation';
 import { CompleteGithubAuthOperation } from './operations/complete-github-auth.operation';
+import { GenerateTestsWithAIOperation } from './operations/generate-tests-with-ai.operation';
 
 /**
  * ApplicationModule
@@ -23,6 +24,7 @@ import { CompleteGithubAuthOperation } from './operations/complete-github-auth.o
     RunCoverageImprovementOperation,
     StartGithubAuthOperation,
     CompleteGithubAuthOperation,
+    GenerateTestsWithAIOperation,
   ],
   exports: [
     ListInstallationRepositoriesOperation,
@@ -32,6 +34,7 @@ import { CompleteGithubAuthOperation } from './operations/complete-github-auth.o
     RunCoverageImprovementOperation,
     StartGithubAuthOperation,
     CompleteGithubAuthOperation,
+    GenerateTestsWithAIOperation,
   ],
 })
 export class ApplicationModule {}
