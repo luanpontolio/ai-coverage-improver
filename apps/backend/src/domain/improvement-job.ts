@@ -232,9 +232,11 @@ export class ImprovementJob {
     if (this.job.status !== 'processing') {
       throw new Error('Can only succeed after processing');
     }
-    if (this.job.filesFailed === 0) {
+    const failed = this.job.filesFailed ?? 0;
+    const succeeded = this.job.filesSucceeded ?? 0;
+    if (failed === 0) {
       this.job.status = 'succeeded';
-    } else if (this.job.filesSucceeded && this.job.filesSucceeded > 0) {
+    } else if (succeeded > 0) {
       this.job.status = 'partial_success';
     } else {
       throw new Error('No files succeeded, cannot mark as success');

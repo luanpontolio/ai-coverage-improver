@@ -44,7 +44,7 @@ export class RunCoverageImprovementOperation {
 
   async execute(input: RunCoverageImprovementInput): Promise<RunCoverageImprovementOutput> {
     console.log(`\n🎬 [DEBUG] RunCoverageImprovementOperation.execute() called for job ${input.jobId}`);
-    
+
     let jobData = await this.jobRepository.findById(input.jobId);
     if (!jobData) {
       throw new Error(`Job ${input.jobId} not found`);
@@ -59,7 +59,7 @@ export class RunCoverageImprovementOperation {
       while (!job.isCompleted()) {
         iteration++;
         console.log(`\n🔄 [DEBUG] Loop iteration ${iteration}, current status: ${job.status}`);
-        
+
         // Reload job to get latest status
         const currentJobData = await this.jobRepository.findById(input.jobId);
         if (!currentJobData) {
