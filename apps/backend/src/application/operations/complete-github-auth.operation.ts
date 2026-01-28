@@ -64,8 +64,9 @@ export class CompleteGithubAuthOperation {
         installationId: installation?.installationId,
       };
       input.session.accessToken = accessToken; // Store access token for API calls
-      input.session.oauthState = undefined;
-      input.session.returnTo = undefined;
+
+      delete input.session.oauthState;
+      delete input.session.returnTo;
     }
 
     return {

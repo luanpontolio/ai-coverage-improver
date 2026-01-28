@@ -8,11 +8,7 @@ export class AuthController {
   constructor(
     private readonly startGithubAuthOperation: StartGithubAuthOperation,
     private readonly completeGithubAuthOperation: CompleteGithubAuthOperation,
-  ) {
-    console.log('AuthController constructor');
-    console.log('startGithubAuthOperation', this.startGithubAuthOperation);
-    console.log('completeGithubAuthOperation', this.completeGithubAuthOperation);
-  }
+  ) {}
 
   @Post('start')
   async start(
