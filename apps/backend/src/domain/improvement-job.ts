@@ -1,26 +1,56 @@
 /**
  * Domain entity representing a coverage improvement job
  * Phase 1: Clone repository
- * Phase 2: AI Processing (to be implemented)
+ * Phase 2: Analyze coverage to identify files below threshold
+ * Phase 3: Generate tests in batch using LLM
  */
-export type JobStatus = 'queued' | 'cloning' | 'cloned' | 'succeeded' | 'failed';
+export type JobStatus =
+  // Fase 1: Setup
+  | 'queued'           // Job criado
+  | 'cloning'          // Clonando repositório
+  | 'cloned'           // Clone concluído
+  // Fase 2: Analysis
+  | 'analyzing'        // Identificando arquivos < 80%
+  | 'analyzed'         // Lista de arquivos pronta
+  // Fase 3: Test Generation
+  | 'processing'       // Gerando testes em batch
+  // Estados finais
+  | 'succeeded'        // Todos os testes gerados com sucesso
+  | 'failed'           // Falhou completamente
+  | 'partial_success'; // Alguns arquivos geraram, outros falharam
 
 export type FailureCode =
   | 'REPO_NOT_FOUND'
   | 'REPO_CLONE_FAILED'
   | 'GITHUB_AUTH_FAILED'
   | 'INVALID_REPOSITORY'
+  | 'NO_FILES_TO_IMPROVE'
+  | 'LLM_GENERATION_FAILED'
   | 'UNKNOWN';
 
 export interface ImprovementJobProps {
   id: string;
   repositoryId: string;
   status: JobStatus;
+
+  // Fase 1: Clone
   clonePath?: string;
+  clonedAt?: Date;
+
+  // Fase 2: Analysis
+  analyzedAt?: Date;
+  targetFilesCount?: number;
+
+  // Fase 3: Test Generation
+  processingStartedAt?: Date;
+  filesProcessed?: number;
+  filesSucceeded?: number;
+  filesFailed?: number;
+
+  // Metadata
   requestedByUserId: string;
   createdAt: Date;
   startedAt?: Date;
-  clonedAt?: Date;
   finishedAt?: Date;
   failureCode?: FailureCode;
   failureMessage?: string;
@@ -80,18 +110,42 @@ export class ImprovementJob {
     return this.job.failureMessage;
   }
 
+  get analyzedAt(): Date | undefined {
+    return this.job.analyzedAt;
+  }
+
+  get targetFilesCount(): number | undefined {
+    return this.job.targetFilesCount;
+  }
+
+  get processingStartedAt(): Date | undefined {
+    return this.job.processingStartedAt;
+  }
+
+  get filesProcessed(): number | undefined {
+    return this.job.filesProcessed;
+  }
+
+  get filesSucceeded(): number | undefined {
+    return this.job.filesSucceeded;
+  }
+
+  get filesFailed(): number | undefined {
+    return this.job.filesFailed;
+  }
+
   /**
    * Check if job is in an open state (not completed)
    */
   isOpen(): boolean {
-    return ['queued', 'cloning', 'cloned'].includes(this.job.status);
+    return !['succeeded', 'failed', 'partial_success'].includes(this.job.status);
   }
 
   /**
    * Check if job is completed (succeeded or failed)
    */
   isCompleted(): boolean {
-    return this.job.status === 'succeeded' || this.job.status === 'failed';
+    return ['succeeded', 'failed', 'partial_success'].includes(this.job.status);
   }
 
   /**
@@ -115,6 +169,95 @@ export class ImprovementJob {
     this.job.status = 'cloned';
     this.job.clonedAt = new Date();
     this.job.clonePath = clonePath;
+  }
+
+  /**
+   * Mark job as analyzing
+   */
+  markAsAnalyzing(): void {
+    if (this.job.status !== 'cloned') {
+      throw new Error('Can only analyze after clone');
+    }
+    this.job.status = 'analyzing';
+    this.job.analyzedAt = new Date();
+  }
+
+  /**
+   * Análise concluída
+   */
+  markAsAnalyzed(fileCount: number): void {
+    if (this.job.status !== 'analyzing') {
+      throw new Error('Can only mark analyzed after analyzing');
+    }
+    if (fileCount === 0) {
+      throw new Error('NO_FILES_TO_IMPROVE: No files below threshold');
+    }
+    this.job.status = 'analyzed';
+    this.job.targetFilesCount = fileCount;
+  }
+
+  /**
+   * Iniciar processamento em batch
+   */
+  markAsProcessing(): void {
+    if (this.job.status !== 'analyzed') {
+      throw new Error('Can only start processing after analysis');
+    }
+    this.job.status = 'processing';
+    this.job.processingStartedAt = new Date();
+    this.job.filesProcessed = 0;
+    this.job.filesSucceeded = 0;
+    this.job.filesFailed = 0;
+  }
+
+  /**
+   * Atualizar progresso
+   */
+  incrementProgress(success: boolean): void {
+    if (this.job.status !== 'processing') {
+      throw new Error('Can only increment during processing');
+    }
+    this.job.filesProcessed = (this.job.filesProcessed || 0) + 1;
+    if (success) {
+      this.job.filesSucceeded = (this.job.filesSucceeded || 0) + 1;
+    } else {
+      this.job.filesFailed = (this.job.filesFailed || 0) + 1;
+    }
+  }
+
+  /**
+   * Marcar como sucesso
+   */
+  markAsSucceeded(): void {
+    if (this.job.status !== 'processing') {
+      throw new Error('Can only succeed after processing');
+    }
+    if (this.job.filesFailed === 0) {
+      this.job.status = 'succeeded';
+    } else if (this.job.filesSucceeded && this.job.filesSucceeded > 0) {
+      this.job.status = 'partial_success';
+    } else {
+      throw new Error('No files succeeded, cannot mark as success');
+    }
+    this.job.finishedAt = new Date();
+  }
+
+  /**
+   * Calcular progresso %
+   */
+  getProgressPercentage(): number {
+    if (!this.job.targetFilesCount) return 0;
+    return Math.round(((this.job.filesProcessed || 0) / this.job.targetFilesCount) * 100);
+  }
+
+  /**
+   * Resumo do batch
+   */
+  getBatchSummary(): string {
+    const total = this.job.targetFilesCount || 0;
+    const succeeded = this.job.filesSucceeded || 0;
+    const failed = this.job.filesFailed || 0;
+    return `${succeeded}/${total} succeeded, ${failed} failed`;
   }
 
   /**
