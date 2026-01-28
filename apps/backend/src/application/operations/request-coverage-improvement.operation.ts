@@ -40,26 +40,37 @@ export class RequestCoverageImprovementOperation {
     }
 
     console.log(`📋 Requesting improvement for ${repo.owner}/${repo.name}`);
+    console.log(`🔍 [DEBUG] Checking for existing open job for repository ${input.repositoryId}`);
 
     // Check for existing open job
     const existingJobData = await this.jobRepository.findOpenJobByRepo(input.repositoryId);
 
     if (existingJobData) {
       const job = new ImprovementJob(existingJobData);
-      console.log(`♻️ Reusing existing job ${job.id} (status: ${job.status})`);
+      console.log(`♻️ [DEBUG] Found existing job ${job.id} with status: ${job.status}`);
+      console.log(`🔄 [DEBUG] Re-enqueuing existing job to continue processing`);
+      
+      // Re-enqueue the existing job to continue processing
+      await this.queue.enqueue(job.id, repo.id);
+      
+      console.log(`✅ [DEBUG] Job ${job.id} re-enqueued successfully`);
       return { job, reused: true };
     }
 
     // Create new job
+    console.log(`🆕 [DEBUG] No existing job found, creating new job`);
     const createdJobData = await this.jobRepository.createJob({
       repositoryId: repo.id,
       requestedByUserId: input.requestedByUserId,
     });
 
     const job = new ImprovementJob(createdJobData);
+    console.log(`📝 [DEBUG] New job created with ID: ${job.id}, status: ${job.status}`);
 
     // Enqueue for async processing
+    console.log(`🔄 [DEBUG] Enqueuing new job ${job.id} for processing`);
     await this.queue.enqueue(job.id, repo.id);
+    console.log(`✅ [DEBUG] Job ${job.id} enqueued successfully`);
 
     console.log(`✨ Created job ${job.id} for ${repo.owner}/${repo.name}`);
 
