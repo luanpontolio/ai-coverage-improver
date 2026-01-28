@@ -20,6 +20,7 @@ coverage/lcov-report/
 .pnpm-debug.log*
 .npmrc
 pnpm-debug.log*
+apps/backend/tmp/
 
 # Database files (SQLite)
 *.db
