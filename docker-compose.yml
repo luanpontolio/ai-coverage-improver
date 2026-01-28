@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  # Redis (for BullMQ job queue - future use)
+  redis:
+    image: redis:7-alpine
+    container_name: ai-coverage-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: ai-coverage-backend
+    environment:
+      # Server
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      WEB_APP_URL: ${WEB_APP_URL:-http://localhost:3001}
+
+      # Database (SQLite)
+      DATABASE_URL: ${DATABASE_URL:-file:/app/apps/backend/data/prod.db}
+
+      # GitHub
+      GITHUB_APP_ID: ${GITHUB_APP_ID}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+
+      # Session
+      SESSION_SECRET: ${SESSION_SECRET}
+
+      # LLM
+      LLM_API_BASE: ${LLM_API_BASE:-https://api.groq.com/openai/v1}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_MODEL: ${LLM_MODEL:-llama-3.3-70b-versatile}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-4000}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.2}
+
+      # Coverage
+      COVERAGE_SOURCE_PATH: ${COVERAGE_SOURCE_PATH:-coverage/lcov.info}
+      COVERAGE_THRESHOLD_PCT: ${COVERAGE_THRESHOLD_PCT:-80}
+    ports:
+      - "${PORT:-3000}:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - backend_tmp:/app/apps/backend/tmp
+      - backend_data:/app/apps/backend/data
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # Frontend Web App
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: ai-coverage-frontend
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
+    ports:
+      - "${FRONTEND_PORT:-3001}:3001"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+    driver: local
+  backend_tmp:
+    driver: local
+  backend_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
