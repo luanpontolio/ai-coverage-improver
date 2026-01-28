@@ -63,15 +63,31 @@ model ImprovementJob {
   id                String   @id @default(cuid())
   repository        Repository @relation(fields: [repositoryId], references: [id])
   repositoryId      String
-  status            String   // queued | cloning | cloned | succeeded | failed
-  clonePath         String?  // Path where the repo was cloned
+  status            String   // queued | cloning | cloned | analyzing | analyzed | processing | succeeded | failed | partial_success
+  
+  // Fase 1: Clone
+  clonePath         String?
+  clonedAt          DateTime?
+  
+  // Fase 2: Analysis
+  analyzedAt            DateTime?
+  targetFilesCount      Int?
+  
+  // Fase 3: Test Generation
+  processingStartedAt   DateTime?
+  filesProcessed        Int?
+  filesSucceeded        Int?
+  filesFailed           Int?
+  
+  // Metadata
   requestedByUserId String?
   createdAt         DateTime @default(now())
   startedAt         DateTime?
-  clonedAt          DateTime?  // When clone was completed
   finishedAt        DateTime?
   failureCode       String?
   failureMessage    String?
+  
+  // Relacionamentos
   executions        AIExecution[]
   
   @@index([repositoryId, status])
@@ -79,13 +95,24 @@ model ImprovementJob {
 }
 
 model AIExecution {
-  id          String   @id @default(cuid())
-  job         ImprovementJob @relation(fields: [jobId], references: [id])
-  jobId       String
-  agentType   String
-  status      String
-  startedAt   DateTime @default(now())
-  finishedAt  DateTime?
-  metadata    String?
+  id                    String   @id @default(cuid())
+  job                   ImprovementJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId                 String
+  targetFilePath        String
+  agentType             String   // 'test-generator'
+  
+  status                String   // pending | running | completed | failed
+  startedAt             DateTime @default(now())
+  finishedAt            DateTime?
+  
+  testFilePath          String?
+  confidence            Float?
+  uncoveredLinesBefore  Int?
+  
+  errorCode             String?
+  errorMessage          String?
+  metadata              String?
+  
+  @@index([jobId, status])
 }
 
