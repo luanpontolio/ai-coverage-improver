@@ -27,5 +27,8 @@ pnpm-debug.log*
 *.db-shm
 *.db-wal
 
+# Database backups
+backups/
+
 # Test database
 apps/backend/prisma/test.db
