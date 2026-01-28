@@ -7,7 +7,6 @@ export interface RepositoryRecord {
   owner: string;
   name: string;
   defaultBranch: string;
-  installationId: string | null;
 }
 
 export interface UpsertRepositoryInput {
@@ -15,7 +14,6 @@ export interface UpsertRepositoryInput {
   owner: string;
   name: string;
   defaultBranch: string;
-  installationId?: string | null;
 }
 
 /**
@@ -41,11 +39,9 @@ export class RepositoryRepository {
         owner: input.owner,
         name: input.name,
         defaultBranch: input.defaultBranch,
-        installationId: input.installationId || null,
       },
       update: {
         defaultBranch: input.defaultBranch,
-        installationId: input.installationId || null,
       },
     });
 
@@ -55,7 +51,6 @@ export class RepositoryRepository {
       owner: repo.owner,
       name: repo.name,
       defaultBranch: repo.defaultBranch,
-      installationId: repo.installationId,
     }
   }
 
@@ -72,7 +67,6 @@ export class RepositoryRepository {
       owner: repo.owner,
       name: repo.name,
       defaultBranch: repo.defaultBranch,
-      installationId: repo.installationId,
     };
   }
 
@@ -99,7 +93,6 @@ export class RepositoryRepository {
       owner: repo.owner,
       name: repo.name,
       defaultBranch: repo.defaultBranch,
-      installationId: repo.installationId,
     };
   }
 }

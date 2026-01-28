@@ -7,16 +7,9 @@ export interface GitHubUser {
   login: string;
 }
 
-export interface GitHubInstallation {
-  installationId: string;
-  accountType: string;
-  accountLogin: string;
-}
-
 export interface ExchangeCodeResult {
   accessToken: string;
   user: GitHubUser;
-  installation?: GitHubInstallation;
 }
 
 /**
@@ -83,9 +76,8 @@ export class GitHubAuthAdapter {
 
     const accessToken = tokenJson.access_token as string;
     const user = await this.fetchGitHubUser(accessToken);
-    const installation = await this.fetchFirstInstallation(accessToken, user);
 
-    return { accessToken, user, installation };
+    return { accessToken, user };
   }
 
   private async fetchGitHubUser(accessToken: string): Promise<GitHubUser> {
@@ -104,35 +96,6 @@ export class GitHubAuthAdapter {
     return {
       id: String(json.id),
       login: json.login,
-    };
-  }
-
-  private async fetchFirstInstallation(
-    accessToken: string,
-    fallbackUser: GitHubUser,
-  ): Promise<GitHubInstallation | undefined> {
-    const res = await fetch('https://api.github.com/user/installations', {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'User-Agent': 'ai-coverage-improver',
-      },
-    });
-
-    if (!res.ok) {
-      // Non-fatal: user may not have an installation yet
-      return undefined;
-    }
-
-    const json = await res.json();
-    const installation = (json.installations ?? [])[0];
-    if (!installation) {
-      return undefined;
-    }
-
-    return {
-      installationId: String(installation.id),
-      accountType: installation.account?.type ?? 'User',
-      accountLogin: installation.account?.login ?? fallbackUser.login,
     };
   }
 }

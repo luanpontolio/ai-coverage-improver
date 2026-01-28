@@ -7,7 +7,6 @@ import { ImprovementProducer } from './queue/improvement.producer';
 import { PrismaService } from './db/prisma.service';
 import { CoverageRepository } from './db/coverage.repository';
 import { JobRepository } from './db/job.repository';
-import { InstallationRepository } from './db/installation.repository';
 import { RepositoryRepository } from './db/repository.repository';
 import { AIExecutionRepository } from './db/ai-execution.repository';
 import { LLMAdapter } from './llm/llm.adapter';
@@ -33,7 +32,6 @@ import { LLMAdapter } from './llm/llm.adapter';
     PrismaService,
     CoverageRepository,
     JobRepository,
-    InstallationRepository,
     RepositoryRepository,
     AIExecutionRepository,
     LLMAdapter,
@@ -46,7 +44,6 @@ import { LLMAdapter } from './llm/llm.adapter';
     PrismaService,
     CoverageRepository,
     JobRepository,
-    InstallationRepository,
     RepositoryRepository,
     AIExecutionRepository,
     LLMAdapter,

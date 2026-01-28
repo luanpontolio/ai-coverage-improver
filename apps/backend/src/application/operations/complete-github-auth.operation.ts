@@ -1,6 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { GitHubAuthAdapter } from '../../infrastructure/github/auth.adapter';
-import { InstallationRepository } from '../../infrastructure/db/installation.repository';
 import { AppConfigService } from '../../config/config.service';
 
 export interface CompleteGithubAuthInput {
@@ -13,7 +12,6 @@ export interface CompleteGithubAuthOutput {
   user: {
     id: string;
     login: string;
-    installationId?: string;
   };
 }
 
@@ -27,7 +25,6 @@ export interface CompleteGithubAuthOutput {
 export class CompleteGithubAuthOperation {
   constructor(
     private readonly authAdapter: GitHubAuthAdapter,
-    private readonly installationRepository: InstallationRepository,
     private readonly configService: AppConfigService,
   ) {
     this.authAdapter = new GitHubAuthAdapter(configService);
@@ -47,21 +44,12 @@ export class CompleteGithubAuthOperation {
       throw new BadRequestException('Invalid OAuth state');
     }
 
-    const { accessToken, user, installation } = await this.authAdapter.exchangeCode(input.code);
-
-    if (installation) {
-      await this.installationRepository.upsert({
-        installationId: installation.installationId,
-        accountType: installation.accountType,
-        accountLogin: installation.accountLogin,
-      });
-    }
+    const { accessToken, user } = await this.authAdapter.exchangeCode(input.code);
 
     if (input.session) {
       input.session.user = {
         id: user.id,
         login: user.login,
-        installationId: installation?.installationId,
       };
       input.session.accessToken = accessToken; // Store access token for API calls
 
@@ -73,7 +61,6 @@ export class CompleteGithubAuthOperation {
       user: {
         id: user.id,
         login: user.login,
-        installationId: installation?.installationId,
       },
     };
   }

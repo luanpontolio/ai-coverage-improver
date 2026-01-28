@@ -46,20 +46,10 @@ The project follows Domain-Driven Design (DDD) with an Operations Pattern, ensur
 
 ```mermaid
 erDiagram
-    GithubInstallation ||--o{ Repository : "has"
     Repository ||--o{ CoverageSnapshot : "has"
     Repository ||--o{ ImprovementJob : "has"
     CoverageSnapshot ||--o{ CoverageFileMetric : "contains"
     ImprovementJob ||--o{ AIExecution : "has"
-
-    GithubInstallation {
-        string id PK
-        string installationId UK "unique"
-        string accountType
-        string accountLogin
-        datetime createdAt
-        datetime updatedAt
-    }
 
     Repository {
         string id PK
@@ -67,7 +57,6 @@ erDiagram
         string owner
         string name
         string defaultBranch
-        string installationId FK "nullable"
         datetime createdAt
         datetime updatedAt
     }
@@ -94,12 +83,18 @@ erDiagram
     ImprovementJob {
         string id PK
         string repositoryId FK
-        string status "queued|cloning|cloned|succeeded|failed"
+        string status "queued|cloning|cloned|analyzing|analyzed|processing|succeeded|failed|partial_success"
         string clonePath "nullable"
+        string clonedAt "nullable"
+        string analyzedAt "nullable"
+        int targetFilesCount "nullable"
+        string processingStartedAt "nullable"
+        int filesProcessed "nullable"
+        int filesSucceeded "nullable"
+        int filesFailed "nullable"
         string requestedByUserId "nullable"
         datetime createdAt
         datetime startedAt "nullable"
-        datetime clonedAt "nullable"
         datetime finishedAt "nullable"
         string failureCode "nullable"
         string failureMessage "nullable"
@@ -108,13 +103,21 @@ erDiagram
     AIExecution {
         string id PK
         string jobId FK
+        string targetFilePath
         string agentType
         string status
         datetime startedAt
         datetime finishedAt "nullable"
+        string testFilePath "nullable"
+        float confidence "nullable"
+        int uncoveredLinesBefore "nullable"
+        string errorCode "nullable"
+        string errorMessage "nullable"
         string metadata "nullable"
     }
 ```
+
+**Note**: This project uses **OAuth App** authentication (not GitHub App), so there is no `GithubInstallation` entity. OAuth Apps authenticate users directly without the concept of "installations".
 
 ### Job Queue Architecture
 
@@ -154,7 +157,6 @@ sequenceDiagram
     participant Frontend
     participant Backend
     participant GitHub
-    participant Database
 
     User->>Frontend: Click "Login with GitHub"
     Frontend->>Backend: POST /auth/github/start
@@ -168,8 +170,7 @@ sequenceDiagram
     Backend->>Backend: Validate state
     Backend->>GitHub: Exchange code for token
     GitHub-->>Backend: Access token + user info
-    Backend->>Database: Upsert Installation
-    Backend->>Backend: Store session
+    Backend->>Backend: Store session (user + token)
     Backend-->>Frontend: {user}
     Frontend->>User: Show dashboard
 ```
@@ -187,7 +188,7 @@ sequenceDiagram
     User->>Frontend: Access Dashboard
     Frontend->>Backend: GET /repos
     Backend->>Backend: Validate session
-    Backend->>GitHub: GET /installation/repositories
+    Backend->>GitHub: GET /user/repos (OAuth)
     GitHub-->>Backend: Repository list
     
     loop For each repository

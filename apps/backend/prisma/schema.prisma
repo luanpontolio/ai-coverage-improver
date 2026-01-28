@@ -7,24 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model GithubInstallation {
-  id             String   @id @default(cuid())
-  installationId String   @unique
-  accountType    String
-  accountLogin   String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  repositories   Repository[]
-}
-
 model Repository {
   id              String   @id @default(cuid())
   provider        String
   owner           String
   name            String
   defaultBranch   String
-  installationId  String?
-  installation    GithubInstallation? @relation(fields: [installationId], references: [installationId])
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   coverageSnaps   CoverageSnapshot[]

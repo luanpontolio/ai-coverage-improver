@@ -392,7 +392,7 @@ export const processImprovementJob = async (jobId: string, jobRepository: JobRep
 ---
 
 ### 6. CompleteGithubAuthOperation
-**Interaction**: Complete GitHub OAuth authentication and persist installation
+**Interaction**: Complete GitHub OAuth authentication
 
 **Location**: `application/operations/complete-github-auth.operation.ts`
 
@@ -402,7 +402,7 @@ export const processImprovementJob = async (jobId: string, jobRepository: JobRep
 - `state: string` - OAuth state token
 
 **Output**:
-- `user: { id: string; login: string; installationId?: string }`
+- `user: { id: string; login: string }`
 
 **Used by**: `AuthController.callback()`
 
@@ -410,10 +410,12 @@ export const processImprovementJob = async (jobId: string, jobRepository: JobRep
 1. Validate OAuth code and state
 2. Verify state matches session
 3. Exchange code for access token
-4. Fetch GitHub user and installation
-5. Persist installation metadata
+4. Fetch GitHub user information
+5. Store access token in session
 6. Attach user to session
 7. Return user information
+
+**Note**: This project uses OAuth App authentication (not GitHub App), so there are no installations to manage.
 
 ---
 
