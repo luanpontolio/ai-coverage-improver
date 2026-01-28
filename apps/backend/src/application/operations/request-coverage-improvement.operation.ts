@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { RepositoryRepository } from '../../infrastructure/db/repository.repository';
 import { JobRepository } from '../../infrastructure/db/job.repository';
-import { ImprovementQueue } from '../../infrastructure/queue';
+import { ImprovementProducer } from '../../infrastructure/queue/improvement.producer';
 import { ImprovementJob } from '../../domain/improvement-job';
 
 export interface RequestCoverageImprovementInput {
@@ -19,13 +19,15 @@ export interface RequestCoverageImprovementOutput {
  *
  * Creates a job to clone repository and prepare for AI processing.
  * Only receives repositoryId - everything else is determined from the repository data.
+ * 
+ * Uses BullMQ via ImprovementProducer to enqueue jobs for async processing.
  */
 @Injectable()
 export class RequestCoverageImprovementOperation {
   constructor(
     private readonly repositoryRepository: RepositoryRepository,
     private readonly jobRepository: JobRepository,
-    private readonly queue: ImprovementQueue,
+    private readonly improvementProducer: ImprovementProducer,
   ) {}
 
   async execute(input: RequestCoverageImprovementInput): Promise<RequestCoverageImprovementOutput> {
@@ -50,10 +52,10 @@ export class RequestCoverageImprovementOperation {
       console.log(`♻️ [DEBUG] Found existing job ${job.id} with status: ${job.status}`);
       console.log(`🔄 [DEBUG] Re-enqueuing existing job to continue processing`);
       
-      // Re-enqueue the existing job to continue processing
-      await this.queue.enqueue(job.id, repo.id);
+      // Re-enqueue the existing job to continue processing (BullMQ)
+      await this.improvementProducer.enqueue(job.id, repo.id);
       
-      console.log(`✅ [DEBUG] Job ${job.id} re-enqueued successfully`);
+      console.log(`✅ [DEBUG] Job ${job.id} re-enqueued successfully to BullMQ`);
       return { job, reused: true };
     }
 
@@ -67,10 +69,10 @@ export class RequestCoverageImprovementOperation {
     const job = new ImprovementJob(createdJobData);
     console.log(`📝 [DEBUG] New job created with ID: ${job.id}, status: ${job.status}`);
 
-    // Enqueue for async processing
+    // Enqueue for async processing via BullMQ
     console.log(`🔄 [DEBUG] Enqueuing new job ${job.id} for processing`);
-    await this.queue.enqueue(job.id, repo.id);
-    console.log(`✅ [DEBUG] Job ${job.id} enqueued successfully`);
+    await this.improvementProducer.enqueue(job.id, repo.id);
+    console.log(`✅ [DEBUG] Job ${job.id} enqueued successfully to BullMQ`);
 
     console.log(`✨ Created job ${job.id} for ${repo.owner}/${repo.name}`);
 

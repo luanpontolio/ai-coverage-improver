@@ -8,15 +8,18 @@ import { RunCoverageImprovementOperation } from './operations/run-coverage-impro
 import { StartGithubAuthOperation } from './operations/start-github-auth.operation';
 import { CompleteGithubAuthOperation } from './operations/complete-github-auth.operation';
 import { GenerateTestsWithAIOperation } from './operations/generate-tests-with-ai.operation';
+import { ImprovementConsumer } from '../workers/improvement.consumer';
 
 /**
  * ApplicationModule
  *
  * Wires up application-layer operations and consumes infrastructure services.
+ * Registers BullMQ consumers (workers) to process background jobs.
  */
 @Module({
   imports: [InfrastructureModule],
   providers: [
+    // Operations
     ListInstallationRepositoriesOperation,
     AnalyzeRepositoryCoverageOperation,
     RequestCoverageImprovementOperation,
@@ -25,6 +28,9 @@ import { GenerateTestsWithAIOperation } from './operations/generate-tests-with-a
     StartGithubAuthOperation,
     CompleteGithubAuthOperation,
     GenerateTestsWithAIOperation,
+    
+    // BullMQ Consumers (Workers)
+    ImprovementConsumer, // Processes 'improvement' queue jobs
   ],
   exports: [
     ListInstallationRepositoriesOperation,
