@@ -1,12 +1,18 @@
 type Job = {
   id: string;
   repositoryId: string;
-  status: 'queued' | 'cloning' | 'cloned' | 'succeeded' | 'failed';
+  status: 'queued' | 'cloning' | 'cloned' | 'analyzing' | 'analyzed' | 'processing' | 'succeeded' | 'failed' | 'partial_success';
   requestedByUserId: string;
   createdAt: string;
   startedAt?: string;
   clonedAt?: string;
   clonePath?: string;
+  analyzedAt?: string;
+  targetFilesCount?: number;
+  processingStartedAt?: string;
+  filesProcessed?: number;
+  filesSucceeded?: number;
+  filesFailed?: number;
   finishedAt?: string;
   pullRequestUrl?: string;
   pullRequestNumber?: number;
@@ -23,7 +29,11 @@ const STATUS_COLORS: Record<Job['status'], string> = {
   queued: '#888',
   cloning: '#0066cc',
   cloned: '#17a2b8',
+  analyzing: '#0066cc',
+  analyzed: '#17a2b8',
+  processing: '#0066cc',
   succeeded: '#28a745',
+  partial_success: '#ffc107',
   failed: '#dc3545',
 };
 
@@ -31,7 +41,11 @@ const STATUS_ICONS: Record<Job['status'], string> = {
   queued: '⏳',
   cloning: '🔄',
   cloned: '✅',
+  analyzing: '🔍',
+  analyzed: '📋',
+  processing: '🤖',
   succeeded: '✅',
+  partial_success: '⚠️',
   failed: '❌',
 };
 
@@ -39,7 +53,11 @@ const STATUS_LABELS: Record<Job['status'], string> = {
   queued: 'Queued',
   cloning: 'Cloning Repository',
   cloned: 'Repository Cloned',
-  succeeded: 'Succeeded',
+  analyzing: 'Analyzing Coverage',
+  analyzed: 'Files Identified',
+  processing: 'Generating Tests',
+  succeeded: 'All Tests Generated',
+  partial_success: 'Partially Completed',
   failed: 'Failed',
 };
 
@@ -98,7 +116,7 @@ export function JobStatus({ job, onRefresh }: Props) {
         <h3 style={{ margin: 0, fontSize: '1.2em' }}>
           {statusIcon} Improvement Job
         </h3>
-        {onRefresh && (job.status === 'queued' || job.status === 'cloning' || job.status === 'cloned') && (
+        {onRefresh && !['succeeded', 'failed', 'partial_success'].includes(job.status) && (
           <button
             onClick={onRefresh}
             style={{
@@ -166,6 +184,16 @@ export function JobStatus({ job, onRefresh }: Props) {
             <strong>Cloned:</strong> {formatDate(job.clonedAt)}
           </div>
         )}
+        {job.analyzedAt && (
+          <div style={{ marginBottom: '0.3rem' }}>
+            <strong>Analyzed:</strong> {formatDate(job.analyzedAt)}
+          </div>
+        )}
+        {job.processingStartedAt && (
+          <div style={{ marginBottom: '0.3rem' }}>
+            <strong>Processing Started:</strong> {formatDate(job.processingStartedAt)}
+          </div>
+        )}
         {job.finishedAt && (
           <div style={{ marginBottom: '0.3rem' }}>
             <strong>Finished:</strong> {formatDate(job.finishedAt)}
@@ -178,8 +206,8 @@ export function JobStatus({ job, onRefresh }: Props) {
         )}
       </div>
 
-      {/* Success: PR Link */}
-      {job.status === 'succeeded' && job.pullRequestUrl && (
+      {/* Success: Tests Generated */}
+      {job.status === 'succeeded' && (
         <div
           style={{
             marginTop: '1rem',
@@ -190,29 +218,41 @@ export function JobStatus({ job, onRefresh }: Props) {
           }}
         >
           <div style={{ marginBottom: '0.5rem', fontWeight: 'bold', color: '#155724' }}>
-            ✅ Tests Generated Successfully!
+            ✅ All Tests Generated Successfully!
           </div>
           <div style={{ marginBottom: '0.5rem' }}>
-            A pull request has been created with test coverage improvements.
+            Generated {job.filesSucceeded} test file{job.filesSucceeded !== 1 ? 's' : ''} for files below coverage threshold.
           </div>
-          <a
-            href={job.pullRequestUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'inline-block',
-              padding: '0.5rem 1rem',
-              backgroundColor: '#28a745',
-              color: 'white',
-              textDecoration: 'none',
-              borderRadius: '4px',
-              fontWeight: 'bold',
-            }}
-          >
-            View Pull Request #{job.pullRequestNumber}
-          </a>
-          <div style={{ marginTop: '0.5rem', fontSize: '0.85em', color: '#666' }}>
-            Review the generated tests and merge when satisfied.
+          <div style={{ fontSize: '0.85em', color: '#666' }}>
+            Test files have been saved in the cloned repository: <code style={{ backgroundColor: '#c3e6cb', padding: '0.2rem 0.4rem', borderRadius: '3px' }}>{job.clonePath}</code>
+          </div>
+        </div>
+      )}
+
+      {/* Partial Success */}
+      {job.status === 'partial_success' && (
+        <div
+          style={{
+            marginTop: '1rem',
+            padding: '1rem',
+            backgroundColor: '#fff3cd',
+            border: '1px solid #ffeeba',
+            borderRadius: '6px',
+          }}
+        >
+          <div style={{ marginBottom: '0.5rem', fontWeight: 'bold', color: '#856404' }}>
+            ⚠️ Partially Completed
+          </div>
+          <div style={{ marginBottom: '0.5rem' }}>
+            Generated {job.filesSucceeded} of {job.targetFilesCount} test files successfully.
+          </div>
+          {job.filesFailed && job.filesFailed > 0 && (
+            <div style={{ marginBottom: '0.5rem', color: '#856404' }}>
+              {job.filesFailed} file{job.filesFailed !== 1 ? 's' : ''} failed to generate.
+            </div>
+          )}
+          <div style={{ fontSize: '0.85em', color: '#666' }}>
+            Successful test files saved in: <code style={{ backgroundColor: '#ffeeba', padding: '0.2rem 0.4rem', borderRadius: '3px' }}>{job.clonePath}</code>
           </div>
         </div>
       )}
@@ -252,7 +292,97 @@ export function JobStatus({ job, onRefresh }: Props) {
             ✅ Repository Cloned
           </div>
           <div style={{ fontSize: '0.9em' }}>
-            Repository successfully cloned. Ready for AI processing (not implemented yet).
+            Repository successfully cloned. Ready for coverage analysis.
+          </div>
+        </div>
+      )}
+
+      {/* Analyzing */}
+      {job.status === 'analyzing' && (
+        <div
+          style={{
+            marginTop: '1rem',
+            padding: '1rem',
+            backgroundColor: '#cce5ff',
+            border: '1px solid #b8daff',
+            borderRadius: '6px',
+          }}
+        >
+          <div style={{ fontWeight: 'bold', color: '#004085', marginBottom: '0.5rem' }}>
+            🔍 Analyzing Coverage...
+          </div>
+          <div style={{ fontSize: '0.9em' }}>
+            Identifying files below coverage threshold.
+          </div>
+        </div>
+      )}
+
+      {/* Analyzed */}
+      {job.status === 'analyzed' && (
+        <div
+          style={{
+            marginTop: '1rem',
+            padding: '1rem',
+            backgroundColor: '#d1ecf1',
+            border: '1px solid #bee5eb',
+            borderRadius: '6px',
+          }}
+        >
+          <div style={{ fontWeight: 'bold', color: '#0c5460', marginBottom: '0.5rem' }}>
+            📋 Files Identified
+          </div>
+          <div style={{ fontSize: '0.9em' }}>
+            Found {job.targetFilesCount} file{job.targetFilesCount !== 1 ? 's' : ''} below coverage threshold. Ready to generate tests.
+          </div>
+        </div>
+      )}
+
+      {/* Processing */}
+      {job.status === 'processing' && (
+        <div
+          style={{
+            marginTop: '1rem',
+            padding: '1rem',
+            backgroundColor: '#cce5ff',
+            border: '1px solid #b8daff',
+            borderRadius: '6px',
+          }}
+        >
+          <div style={{ fontWeight: 'bold', color: '#004085', marginBottom: '0.5rem' }}>
+            🤖 Generating Tests...
+          </div>
+          <div style={{ fontSize: '0.9em', marginBottom: '0.5rem' }}>
+            Processing {job.filesProcessed || 0} of {job.targetFilesCount} files
+          </div>
+          {/* Progress Bar */}
+          <div style={{ 
+            width: '100%', 
+            backgroundColor: '#e9ecef', 
+            borderRadius: '4px', 
+            height: '20px',
+            marginBottom: '0.5rem',
+            overflow: 'hidden'
+          }}>
+            <div style={{ 
+              width: `${((job.filesProcessed || 0) / (job.targetFilesCount || 1)) * 100}%`,
+              backgroundColor: '#0066cc',
+              height: '100%',
+              transition: 'width 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontSize: '0.75em',
+              fontWeight: 'bold'
+            }}>
+              {Math.round(((job.filesProcessed || 0) / (job.targetFilesCount || 1)) * 100)}%
+            </div>
+          </div>
+          <div style={{ fontSize: '0.85em', color: '#004085' }}>
+            ✅ {job.filesSucceeded || 0} succeeded
+            {job.filesFailed && job.filesFailed > 0 && (
+              <> • ❌ {job.filesFailed} failed</>
+            )}
           </div>
         </div>
       )}
