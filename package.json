@@ -12,7 +12,11 @@
     "test": "jest --runInBand --config jest.config.cjs",
     "dev:backend": "pnpm --filter @ai-coverage-improver/backend dev:watch",
     "dev:web": "pnpm --filter @ai-coverage-improver/web dev",
-    "build": "echo \"TODO: add build steps\" && exit 0",
+    "build": "pnpm build:backend && pnpm build:web",
+    "build:backend": "pnpm --filter @ai-coverage-improver/backend build",
+    "build:web": "pnpm --filter @ai-coverage-improver/web build",
+    "start:backend": "pnpm --filter @ai-coverage-improver/backend start",
+    "start:web": "pnpm --filter @ai-coverage-improver/web start",
     "db:generate": "prisma generate --schema=apps/backend/prisma/schema.prisma",
     "db:migrate": "prisma migrate dev --schema=apps/backend/prisma/schema.prisma",
     "db:migrate:deploy": "prisma migrate deploy --schema=apps/backend/prisma/schema.prisma",
@@ -22,7 +26,12 @@
     "test:coverage": "jest --runInBand --coverage --config jest.config.cjs",
     "test:backend": "jest --runInBand --config jest.config.cjs apps/backend",
     "test:backend:coverage": "jest --runInBand --coverage --config jest.config.cjs apps/backend",
-    "test:backend:watch": "jest --watch --config jest.config.cjs apps/backend"
+    "test:backend:watch": "jest --watch --config jest.config.cjs apps/backend",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:clean": "docker-compose down -v"
   },
   "devDependencies": {
     "@nestjs/testing": "^11.1.10",
@@ -49,6 +58,7 @@
   },
   "dependencies": {
     "@nestjs/common": "^11.1.10",
+    "@nestjs/config": "^3.2.3",
     "@nestjs/core": "^11.1.10",
     "@nestjs/platform-express": "^11.1.9",
     "@octokit/rest": "^20.0.2",
