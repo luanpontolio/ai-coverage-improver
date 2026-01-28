@@ -1,6 +1,6 @@
 /**
  * Configuration Types
- * 
+ *
  * Centralized configuration interfaces for type-safe access to environment variables.
  * All configuration should be accessed through AppConfigService, never directly via process.env.
  */
@@ -55,6 +55,15 @@ export interface ServerConfig {
   nodeEnv: string;
 }
 
+export interface RedisConfig {
+  /** Redis host */
+  host: string;
+  /** Redis port */
+  port: number;
+  /** Redis password (optional) */
+  password?: string;
+}
+
 /**
  * Complete application configuration
  */
@@ -65,4 +74,5 @@ export interface AppConfig {
   coverage: CoverageConfig;
   llm: LLMConfig;
   server: ServerConfig;
+  redis: RedisConfig;
 }

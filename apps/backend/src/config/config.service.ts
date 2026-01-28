@@ -7,7 +7,8 @@ import {
   SessionConfig,
   CoverageConfig,
   LLMConfig,
-  ServerConfig
+  ServerConfig,
+  RedisConfig
 } from './config.types';
 
 /**
@@ -38,6 +39,7 @@ export class AppConfigService {
       coverage: this.coverage,
       llm: this.llm,
       server: this.server,
+      redis: this.redis,
     };
   }
 
@@ -102,6 +104,17 @@ export class AppConfigService {
       webAppUrl: this.get('WEB_APP_URL', 'http://localhost:3001'),
       port: parseInt(this.get('PORT', '3000')),
       nodeEnv: this.get('NODE_ENV', 'development'),
+    };
+  }
+
+  /**
+   * Redis configuration
+   */
+  get redis(): RedisConfig {
+    return {
+      host: this.get('REDIS_HOST', 'localhost'),
+      port: parseInt(this.get('REDIS_PORT', '6379')),
+      password: this.configService.get<string>('REDIS_PASSWORD'),
     };
   }
 

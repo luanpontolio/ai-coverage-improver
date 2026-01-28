@@ -21,7 +21,7 @@ async function bootstrap() {
 
   // Get configuration service
   const configService = app.get(AppConfigService);
-  
+
   // Validate configuration at startup
   configService.validate();
 
@@ -42,6 +42,7 @@ async function bootstrap() {
       cookie: {
         httpOnly: true,
         sameSite: 'lax',
+        maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
       },
     }),
   );
@@ -49,7 +50,7 @@ async function bootstrap() {
   // Enable graceful shutdown hooks
   // This allows NestJS to properly close connections when receiving shutdown signals
   app.enableShutdownHooks();
-  
+
   await app.listen(server.port);
   Logger.log(`🚀 API listening on http://localhost:${server.port}`);
   Logger.log(`📊 Environment: ${server.nodeEnv}`);
@@ -61,7 +62,7 @@ async function bootstrap() {
 
 /**
  * Setup graceful shutdown handlers for SIGTERM and SIGINT
- * 
+ *
  * Ensures:
  * - All connections are closed properly
  * - Database connections are released
