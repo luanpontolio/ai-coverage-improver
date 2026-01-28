@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { JobRepository } from '../db/job.repository';
 import { RepositoryRepository } from '../db/repository.repository';
+import { CoverageRepository } from '../db/coverage.repository';
+import { AIExecutionRepository } from '../db/ai-execution.repository';
+import { CoverageSourceAdapter } from '../github/coverage-source.adapter';
+import { LLMAdapter } from '../llm/llm.adapter';
+import { AppConfigService } from '../../config/config.service';
 import { processImprovementJob } from '../../workers/improvement.worker';
 
 export interface ImprovementJobData {
@@ -21,6 +26,11 @@ export class ImprovementQueue {
   constructor(
     private readonly jobRepository: JobRepository,
     private readonly repositoryRepository: RepositoryRepository,
+    private readonly coverageRepository: CoverageRepository,
+    private readonly aiExecutionRepository: AIExecutionRepository,
+    private readonly coverageSourceAdapter: CoverageSourceAdapter,
+    private readonly llmAdapter: LLMAdapter,
+    private readonly configService: AppConfigService,
   ) {}
 
   /**
@@ -30,19 +40,37 @@ export class ImprovementQueue {
    * TODO: Replace with BullMQ queue.add() for distributed processing
    */
   async enqueue(jobId: string, repositoryId: string): Promise<void> {
-    console.log(`📤 Enqueuing job ${jobId} for repository ${repositoryId}`);
+    console.log(`📤 [DEBUG] ImprovementQueue.enqueue() called`);
+    console.log(`   Job ID: ${jobId}`);
+    console.log(`   Repository ID: ${repositoryId}`);
 
     // Process job asynchronously in the background
     // Using setImmediate to not block the request response
     setImmediate(async () => {
       try {
-        console.log(`🚀 Starting background processing for job ${jobId}`);
-        await processImprovementJob(jobId, this.jobRepository, this.repositoryRepository);
-        console.log(`✅ Job ${jobId} processing completed`);
+        console.log(`\n🚀 [DEBUG] Starting background processing for job ${jobId}`);
+        console.log(`⏰ [DEBUG] Time: ${new Date().toISOString()}`);
+        
+        await processImprovementJob(
+          jobId,
+          this.jobRepository,
+          this.repositoryRepository,
+          this.coverageRepository,
+          this.aiExecutionRepository,
+          this.coverageSourceAdapter,
+          this.llmAdapter,
+          this.configService,
+        );
+        
+        console.log(`\n✅ [DEBUG] Job ${jobId} processing completed`);
+        console.log(`⏰ [DEBUG] Time: ${new Date().toISOString()}`);
       } catch (error) {
-        console.error(`❌ Failed to process job ${jobId}:`, error);
+        console.error(`\n❌ [DEBUG] Failed to process job ${jobId}:`, error);
+        console.error(`🔍 [DEBUG] Error stack:`, error instanceof Error ? error.stack : error);
       }
     });
+    
+    console.log(`✅ [DEBUG] Job ${jobId} scheduled for background processing (setImmediate)`);
   }
 
   /**
