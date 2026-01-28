@@ -8,6 +8,8 @@ import { CoverageRepository } from './db/coverage.repository';
 import { JobRepository } from './db/job.repository';
 import { InstallationRepository } from './db/installation.repository';
 import { RepositoryRepository } from './db/repository.repository';
+import { AIExecutionRepository } from './db/ai-execution.repository';
+import { LLMAdapter } from './llm/llm.adapter';
 
 /**
  * InfrastructureModule
@@ -25,6 +27,8 @@ import { RepositoryRepository } from './db/repository.repository';
     JobRepository,
     InstallationRepository,
     RepositoryRepository,
+    AIExecutionRepository,
+    LLMAdapter,
   ],
   exports: [
     GitHubReposAdapter,
@@ -36,6 +40,8 @@ import { RepositoryRepository } from './db/repository.repository';
     JobRepository,
     InstallationRepository,
     RepositoryRepository,
+    AIExecutionRepository,
+    LLMAdapter,
   ],
 })
 export class InfrastructureModule {}
