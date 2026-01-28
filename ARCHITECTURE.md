@@ -51,6 +51,8 @@ apps/backend/src/
 │       ├── analyze-repository-coverage.operation.ts
 │       ├── request-coverage-improvement.operation.ts
 │       ├── run-coverage-improvement.operation.ts
+│       ├── generate-tests-with-ai.operation.ts
+│       ├── get-job-status.operation.ts
 │       ├── start-github-auth.operation.ts
 │       └── complete-github-auth.operation.ts
 │
@@ -322,7 +324,7 @@ export const processImprovementJob = async (jobId: string, jobRepository: JobRep
 ---
 
 ### 4. RunCoverageImprovementOperation
-**Interaction**: Execute the complete coverage improvement workflow
+**Interaction**: Execute the complete coverage improvement workflow in 3 phases
 
 **Location**: `application/operations/run-coverage-improvement.operation.ts`
 
@@ -335,13 +337,35 @@ export const processImprovementJob = async (jobId: string, jobRepository: JobRep
 **Used by**: `improvement.worker.processImprovementJob()`
 
 **Workflow**:
-1. Load job from repository
-2. Mark job as running
-3. Clone repository
-4. Validate target file
-5. Generate tests using AI
-6. Create pull request
-7. Mark job as succeeded/failed
+
+**Phase 1: Clone Repository**
+1. Mark job as cloning
+2. Fetch repository metadata
+3. Clone repository to local filesystem
+4. Mark job as cloned
+
+**Phase 2: Analysis**
+1. Mark job as analyzing
+2. Fetch coverage data from repository
+3. Identify files below coverage threshold (80%)
+4. Create AIExecution records for each file
+5. Mark job as analyzed
+
+**Phase 3: Batch Processing**
+1. Mark job as processing
+2. For each file below threshold:
+   - Load LCOV coverage data
+   - Parse detailed coverage for the specific file
+   - Generate tests using AI (via GenerateTestsWithAIOperation)
+   - Write test file to cloned repository
+   - Update progress counters
+3. Mark job as succeeded/failed
+
+**Key Features**:
+- Batch processing of multiple files below threshold
+- Detailed progress tracking (filesProcessed, filesSucceeded, filesFailed)
+- Comprehensive error categorization (REPO_CLONE_FAILED, NO_FILES_TO_IMPROVE, etc.)
+- Continues processing other files even if one fails
 
 ---
 
@@ -393,6 +417,78 @@ export const processImprovementJob = async (jobId: string, jobRepository: JobRep
 
 ---
 
+### 7. GenerateTestsWithAIOperation
+**Interaction**: Generate test code for a specific file using LLM
+
+**Location**: `application/operations/generate-tests-with-ai.operation.ts`
+
+**Input**:
+- `clonePath: string` - Path to cloned repository
+- `filePath: string` - Target file to generate tests for
+- `lcovContent: string` - LCOV coverage data
+
+**Output**:
+- `testFilePath: string` - Path to generated test file
+- `testCode: string` - Generated test code
+- `confidence: number` - Confidence score (0-1)
+- `uncoveredLinesCount: number` - Number of uncovered lines
+- `targetCoverage: number` - Current coverage percentage
+
+**Used by**: `RunCoverageImprovementOperation` (Phase 3)
+
+**Workflow**:
+1. Read source file from cloned repository
+2. Parse detailed LCOV coverage for the specific file
+   - Extract uncovered lines
+   - Extract uncovered functions
+   - Calculate current coverage percentage
+3. Check for existing test files
+4. Call LLM adapter with context:
+   - Source code
+   - Existing test code (if any)
+   - Detailed coverage data
+5. Write generated test code to file system
+6. Return test metadata
+
+**Key Features**:
+- Parses detailed coverage data (lines, functions)
+- Detects and augments existing tests
+- Provides confidence score for generated tests
+- Creates test directory structure automatically
+
+---
+
+### 8. GetJobStatusOperation
+**Interaction**: Retrieve status and details of an improvement job
+
+**Location**: `application/operations/get-job-status.operation.ts`
+
+**Input**:
+- `repositoryId: string` - Repository identifier
+- `jobId: string` - Job identifier
+
+**Output**:
+- `job: ImprovementJob` - Job domain entity with full status
+
+**Used by**: `ImprovementsController.getJobStatus()`
+
+**Workflow**:
+1. Find job by ID in repository
+2. Validate job exists (throws NotFoundException if not found)
+3. Wrap in domain entity
+4. Return job with status
+
+**Key Features**:
+- Simple status retrieval operation
+- Validates job existence
+- Returns full job details including:
+  - Status (queued, cloning, cloned, analyzing, analyzed, processing, succeeded, failed)
+  - Progress counters (filesProcessed, filesSucceeded, filesFailed)
+  - Timestamps (startedAt, clonedAt, analyzedAt, processingStartedAt, finishedAt)
+  - Failure information (failureCode, failureMessage)
+
+---
+
 ## Benefits of This Pattern
 
 ### ✅ Clear System Behavior
@@ -424,8 +520,10 @@ export const processImprovementJob = async (jobId: string, jobRepository: JobRep
 
 ## Next Steps
 
-- [ ] Implement actual AI generation in `RunCoverageImprovementOperation`
+- [x] Implement actual AI generation in `RunCoverageImprovementOperation` ✅
+- [x] Create operations for job status queries ✅
 - [ ] Replace in-memory job queue with BullMQ + Redis
 - [ ] Add authentication guard and real user context
-- [ ] Create operations for job status queries
+- [ ] Create pull requests with generated tests
 - [ ] Add comprehensive integration tests for each operation
+- [ ] Implement re-run coverage after test generation to measure improvement
