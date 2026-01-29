@@ -1,6 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { GitHubAuthAdapter } from '../../infrastructure/github/auth.adapter';
-import { AppConfigService } from '../../config/config.service';
 
 export interface CompleteGithubAuthInput {
   session?: any;
@@ -23,12 +22,7 @@ export interface CompleteGithubAuthOutput {
  */
 @Injectable()
 export class CompleteGithubAuthOperation {
-  constructor(
-    private readonly authAdapter: GitHubAuthAdapter,
-    private readonly configService: AppConfigService,
-  ) {
-    this.authAdapter = new GitHubAuthAdapter(configService);
-  }
+  constructor(private readonly authAdapter: GitHubAuthAdapter) {}
 
   async execute(input: CompleteGithubAuthInput): Promise<CompleteGithubAuthOutput> {
     if (!input.code) {
