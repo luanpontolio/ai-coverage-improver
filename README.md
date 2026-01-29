@@ -35,7 +35,7 @@ The project follows Domain-Driven Design (DDD) with an Operations Pattern, ensur
 - 🔐 **GitHub OAuth Authentication** - Secure login with GitHub App integration
 - 📊 **Coverage Analysis** - Parse and display coverage reports (LCOV format)
 - 🎯 **Smart Filtering** - Automatically identify files below threshold
-- 🤖 **AI Test Generation** - Request automated test creation (Phase 1: Clone ready)
+- 🤖 **AI Test Generation** - Request automated test creation
 - 📈 **Real-time Updates** - Live job status with automatic polling
 - 🔄 **Job Queue with BullMQ** - Redis-backed job queue with retry, concurrency control, and rate limiting
 - 💾 **Persistent Storage** - SQLite database with Prisma ORM
